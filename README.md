@@ -144,6 +144,16 @@ Output lands in `dist/`. To preview the production build locally before deployin
 npm run preview
 # Opens http://localhost:4173
 ```
+
+---
+
+## Deployment
+
+### Netlify
+
+The repo ships with a `netlify.toml` that configures everything automatically.
+
+
 ---
 ## AI Difficulty Tiers
 
