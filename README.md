@@ -1,4 +1,4 @@
-# BATTLESHIP V1.2
+# BATTLESHIP
 
 A full-featured, single-player Battleship game built with React 19, TypeScript 5.9, and Vite 6. Play against four AI difficulty tiers — from erratic random fire to a near-optimal probability-density engine.
 
