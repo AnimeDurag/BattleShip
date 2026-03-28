@@ -3,6 +3,15 @@ import { Board } from '../models/types';
 import { createBoard, placeShip } from '../models/Board';
 import { createShip } from '../models/Ship';
 
+
+// ─── Class name utility ───────────────────────────────────────────────────────
+// Filters out falsy values and joins the rest with a space. Replaces the
+// ['base', condition ? 'mod' : ''].join(' ') pattern used throughout components
+// — that pattern produces leading/trailing spaces when conditions are false.
+export function cx(...classes: (string | false | null | undefined)[]): string {
+  return classes.filter(Boolean).join(' ');
+}
+
 const MAX_PLACEMENT_ATTEMPTS = 500;
 
 // Converts "A5" → [5, 0] (row, col)

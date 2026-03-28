@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { GameState, AIState } from '../models/types';
+import { GameState, AIState, Difficulty } from '../models/types';
 import { createGame, startGame, playerAttack, opponentAttack, isGameOver, removeShipFromBoard } from '../models/Game';
-import { placeShip } from '../models/Board';
+import { createBoard, placeShip } from '../models/Board';
 import { createShip } from '../models/Ship';
 import { createAIState, getAIMove, updateAIState } from '../ai/opponent';
 import { FLEET, COLUMN_LABELS } from '../utils/constants';
@@ -29,6 +29,8 @@ export function useGameState() {
   const [log, setLog]               = useState<LogEntry[]>([]);
   const [aiThinking, setAiThinking] = useState(false);
   const [battleStarting, setBattleStarting] = useState(false);
+  const [difficulty, setDifficulty]       = useState<Difficulty | null>(null);
+  const [playerShotCount, setPlayerShotCount] = useState(0);
 
   // Refs always hold the latest state so setTimeout callbacks never read
   // stale closure values regardless of React batching behaviour.
@@ -36,6 +38,18 @@ export function useGameState() {
   const aiStateRef   = useRef<AIState>(aiState);
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
   useEffect(() => { aiStateRef.current   = aiState;   }, [aiState]);
+
+  // Timeout IDs stored in refs so they can be cancelled on unmount,
+  // preventing state updates being called on an unmounted component.
+  const battleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const aiTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (battleTimerRef.current) clearTimeout(battleTimerRef.current);
+      if (aiTimerRef.current)     clearTimeout(aiTimerRef.current);
+    };
+  }, []);
 
   const [setupState, setSetupState] = useState<SetupState>({
     placedShipNames: [],
@@ -81,8 +95,14 @@ export function useGameState() {
     const def = FLEET.find(f => f.name === selectedShipName);
     if (!def) return false;
 
-    const ship   = createShip(def.name, def.size);
-    const result = placeShip(gameState.playerBoard, ship, row, col, orientation);
+    const ship = createShip(def.name, def.size);
+
+    // Validate and build the new board against the ref — gameStateRef.current
+    // is kept in sync with every render via useEffect, so it always reflects
+    // the latest committed board even between React batches. Reading from it
+    // here is safe because selectShip and placeSelectedShip are always called
+    // in separate act() / event-handler calls, ensuring a flush between them.
+    const result = placeShip(gameStateRef.current.playerBoard, ship, row, col, orientation);
     if (!result) return false;
 
     setGameState(prev => ({ ...prev, playerBoard: result }));
@@ -97,20 +117,21 @@ export function useGameState() {
     }));
 
     return true;
-  }, [setupState, gameState.playerBoard]);
+  }, [setupState]);
 
-  // ── Setup: randomize only unplaced ships ──────────────────────────────────
-  // Delegates entirely to randomBoard() in helpers.ts, passing the current
-  // board and the names of already-placed ships to preserve. This keeps the
-  // logic in one place for the CLI, React UI, and future multiplayer mode.
+  // ── Setup: randomize ships ────────────────────────────────────────────────
+  // When all ships are already placed, passes an empty exclude list so the
+  // entire fleet is re-randomized from scratch. When only some ships are
+  // placed, preserves those and randomizes only the remainder.
+  // Delegates entirely to randomBoard() in helpers.ts in both cases.
 
   const randomizePlacement = useCallback(() => {
     const { placedShipNames } = setupState;
-    if (placedShipNames.length === FLEET.length) return;
+    const allPlaced = placedShipNames.length === FLEET.length;
 
     setGameState(prev => ({
       ...prev,
-      playerBoard: randomBoard(prev.playerBoard, placedShipNames),
+      playerBoard: randomBoard(allPlaced ? undefined : prev.playerBoard, allPlaced ? [] : placedShipNames),
     }));
 
     setSetupState(prev => ({
@@ -120,17 +141,34 @@ export function useGameState() {
     }));
   }, [setupState]);
 
+  // ── Setup: clear all placed ships ────────────────────────────────────────────
+
+  const clearBoard = useCallback(() => {
+    setGameState(prev => ({ ...prev, playerBoard: createBoard() }));
+    setSetupState(prev => ({
+      ...prev,
+      placedShipNames: [],
+      selectedShipName: FLEET[0].name,
+    }));
+  }, []);
+
+  // ── Select difficulty ────────────────────────────────────────────────────────
+
+  const selectDifficulty = useCallback((d: Difficulty) => {
+    setDifficulty(d);
+  }, []);
+
   // ── Transition: setup → playing ────────────────────────────────────────────
 
   const beginGame = useCallback(() => {
     setBattleStarting(true);
-    setTimeout(() => {
+    battleTimerRef.current = setTimeout(() => {
       setGameState(prev => startGame({ ...prev, opponentBoard: randomBoard() }));
-      setAIState(createAIState());
+      setAIState(createAIState(difficulty ? { difficulty } : undefined));
       addLog('BATTLE COMMENCED — FIRE AT WILL', 'system');
       setBattleStarting(false);
     }, 1500);
-  }, [addLog]);
+  }, [addLog, difficulty]);
 
   // ── Player attacks ─────────────────────────────────────────────────────────
 
@@ -145,6 +183,7 @@ export function useGameState() {
     if (outcome.result === 'already-attacked') return;
 
     setGameState(afterAttack);
+    setPlayerShotCount(prev => prev + 1);
 
     const coord = `${COLUMN_LABELS[col]}${row + 1}`;
     if      (outcome.result === 'sunk') addLog(`▸ ${coord} — SUNK ${outcome.ship!.name.toUpperCase()}`, 'sunk');
@@ -158,7 +197,7 @@ export function useGameState() {
     // React Strict Mode calling the updater twice and double-logging.
 
     setAiThinking(true);
-    setTimeout(() => {
+    aiTimerRef.current = setTimeout(() => {
       // Read from ref to guarantee we operate on the latest committed state
       // even if React has batched updates since the timeout was scheduled.
       const latestState   = gameStateRef.current;
@@ -172,7 +211,14 @@ export function useGameState() {
       else if (aiOutcome.result === 'hit')  addLog(`◂ ENEMY ${aiCoord} — HIT YOUR SHIP`, 'enemy');
       else                                  addLog(`◂ ENEMY ${aiCoord} — MISS`, 'enemy');
 
-      setGameState(afterAI);
+      setGameState(prev => ({
+        ...afterAI,
+        // Functional update: prev.shotCount is the committed value after the
+        // player's turn. Adding 1 here counts the AI's shot so that
+        // gameState.shotCount reflects total shots fired by both sides,
+        // which the header displays as "MISSILES FIRED".
+        shotCount: prev.shotCount + 1,
+      }));
       setAIState(newAIState);
       setAiThinking(false);
     }, 900 + Math.random() * 400);
@@ -181,15 +227,20 @@ export function useGameState() {
   // ── Reset entire game ──────────────────────────────────────────────────────
 
   const resetGame = useCallback(() => {
+    if (battleTimerRef.current) clearTimeout(battleTimerRef.current);
+    if (aiTimerRef.current)     clearTimeout(aiTimerRef.current);
     setGameState(createGame());
     setAIState(createAIState());
     setLog([]);
     setAiThinking(false);
+    setBattleStarting(false);
+    setPlayerShotCount(0);
     setSetupState({
       placedShipNames: [],
       selectedShipName: null,
       orientation: 'horizontal',
     });
+    setDifficulty(null);
   }, []);
 
   // ── Derived ────────────────────────────────────────────────────────────────
@@ -203,11 +254,15 @@ export function useGameState() {
     aiThinking,
     battleStarting,
     allShipsPlaced,
+    difficulty,
+    playerShotCount,
     selectShip,
     setOrientation,
     placeSelectedShip,
     randomizePlacement,
+    clearBoard,
     beginGame,
+    selectDifficulty,
     fireAt,
     resetGame,
   };

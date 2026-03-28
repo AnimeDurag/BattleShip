@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Board } from '../models/types';
 import { COLUMN_LABELS, BOARD_SIZE } from '../utils/constants';
+import type { Ship } from '../models/types';
 import Cell from './Cell';
 
 interface BoardGridProps {
@@ -10,6 +11,9 @@ interface BoardGridProps {
   onCellClick?: (row: number, col: number) => void;
   setupShipSize?: number;
   setupOrientation?: 'horizontal' | 'vertical';
+  onRotate?: () => void;          // setup: R key toggles orientation
+  revealShips?: boolean;          // gameover: show hidden enemy ship positions
+  difficultyChosen?: boolean;     // false while difficulty overlay is active — disables setup kb nav
 }
 
 function previewShipCells(
@@ -25,6 +29,11 @@ function previewShipCells(
   ) as [number, number][];
 }
 
+// Returns the name of the ship occupying [r,c], or undefined if none.
+function shipAtCell(ships: Ship[], r: number, c: number): string | undefined {
+  return ships.find(s => s.cells.some(([sr, sc]) => sr === r && sc === c))?.name;
+}
+
 export default function BoardGrid({
   board,
   isOwn,
@@ -32,21 +41,56 @@ export default function BoardGrid({
   onCellClick,
   setupShipSize,
   setupOrientation,
+  onRotate,
+  revealShips = false,
+  difficultyChosen = true,
 }: BoardGridProps) {
-  const [hoverCell, setHoverCell]   = useState<[number, number] | null>(null);
-  const [shaking, setShaking]       = useState(false);
-  const [cursorCell, setCursorCell] = useState<[number, number]>([0, 0]);
+  const [hoverCell, setHoverCell] = useState<[number, number] | null>(null);
+  const [shaking, setShaking]     = useState(false);
+  // mouseActive tracks whether the mouse is controlling hover. When keyboard
+  // moves the cursor, we take over hoverCell to drive the preview. When the
+  // mouse enters a cell, it retakes control.
+  // mouseActiveRef: true when mouse last controlled hover/cursor.
+  // Used by both setup (preview) and enemy board (attack highlight).
+  const mouseActiveRef = useRef(false);
 
-  const isEnemyBoard = !isOwn && phase === 'playing';
+  // enemyKbMode: true when keyboard last moved the enemy-board cursor.
+  // Suppresses cell--attackable on non-cursor cells so only one cell is
+  // highlighted at a time (no simultaneous CSS :hover + cell--focused).
+  const [enemyKbMode, setEnemyKbMode] = useState(false);
+  const setEnemyKbModeRef = useRef(setEnemyKbMode);
+
+  // cursorCell lives in a ref so its position survives parent re-renders
+  // (e.g. after the AI takes its turn and React updates game state).
+  // A separate counter state is incremented only when the cursor actually
+  // moves, giving React a reason to re-render and reflect the new position.
+  const cursorCellRef  = useRef<[number, number]>([0, 0]);
+  const [, setCursorTick] = useState(0);
+
+  // Require onCellClick: when undefined (AI thinking, gameover, reveal)
+  // the board is locked — no keyboard, no cursor highlight.
+  const isEnemyBoard = !isOwn && phase === 'playing' && !!onCellClick;
+
+  // Helper that updates the ref and triggers exactly one re-render
+  function moveCursor(r: number, c: number) {
+    cursorCellRef.current = [r, c];
+    setCursorTick(t => t + 1);
+  }
 
   // Keep a ref to the latest onCellClick so the keyboard handler never
   // closes over a stale version — and never triggers setState updaters.
   const onCellClickRef = useRef(onCellClick);
   useEffect(() => { onCellClickRef.current = onCellClick; }, [onCellClick]);
 
-  // Keep a ref to the latest cursorCell for the same reason
-  const cursorCellRef = useRef(cursorCell);
-  useEffect(() => { cursorCellRef.current = cursorCell; }, [cursorCell]);
+  const onRotateRef     = useRef(onRotate);
+  useEffect(() => { onRotateRef.current = onRotate; }, [onRotate]);
+
+  const setHoverCellRef    = useRef(setHoverCell);
+  // setHoverCell is stable (useState setter) so the ref never needs updating
+
+  // handleCellClick is declared below — ref updated after each render so the
+  // setup keyboard handler always gets the version with fresh board state.
+  const handleCellClickRef = useRef<(r: number, c: number) => void>(() => {});
 
   // ── Keyboard navigation on enemy board ──────────────────────────────────
 
@@ -64,10 +108,14 @@ export default function BoardGrid({
       if (moves[e.key]) {
         e.preventDefault();
         const [dr, dc] = moves[e.key];
-        setCursorCell(([r, c]) => [
+        const [r, c]   = cursorCellRef.current;
+        // Keyboard takes over: suppress mouse hover highlight
+        mouseActiveRef.current = false;
+        setEnemyKbModeRef.current(true);
+        moveCursor(
           Math.max(0, Math.min(BOARD_SIZE - 1, r + dr)),
           Math.max(0, Math.min(BOARD_SIZE - 1, c + dc)),
-        ]);
+        );
         return;
       }
 
@@ -82,6 +130,53 @@ export default function BoardGrid({
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [isEnemyBoard]);
+
+
+  // ── Keyboard navigation in setup phase ──────────────────────────────────
+
+  // Keyboard nav disabled when difficulty overlay is active (difficultyChosen=false)
+  const isSetupKeyboard = phase === 'setup' && isOwn && !!onCellClick && difficultyChosen;
+
+  useEffect(() => {
+    if (!isSetupKeyboard) return;
+
+    function handleKey(e: KeyboardEvent) {
+      const moves: Record<string, [number, number]> = {
+        ArrowUp:    [-1,  0],
+        ArrowDown:  [ 1,  0],
+        ArrowLeft:  [ 0, -1],
+        ArrowRight: [ 0,  1],
+      };
+
+      if (moves[e.key]) {
+        e.preventDefault();
+        const [dr, dc] = moves[e.key];
+        const [r, c]   = cursorCellRef.current;
+        const nextR    = Math.max(0, Math.min(BOARD_SIZE - 1, r + dr));
+        const nextC    = Math.max(0, Math.min(BOARD_SIZE - 1, c + dc));
+        moveCursor(nextR, nextC);
+        // Sync hover preview to keyboard cursor position so ship ghost follows
+        mouseActiveRef.current = false;
+        setHoverCellRef.current([nextR, nextC]);
+        return;
+      }
+
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        const [r, c] = cursorCellRef.current;
+        handleCellClickRef.current(r, c);
+        return;
+      }
+
+      if (e.key.toLowerCase() === 'r') {
+        e.preventDefault();
+        onRotateRef.current?.();
+      }
+    }
+
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isSetupKeyboard]);
 
   // ── Setup preview cells ──────────────────────────────────────────────────
 
@@ -102,16 +197,31 @@ export default function BoardGrid({
 
   function handleCellClick(r: number, c: number) {
     if (!onCellClick) return;
-    if (isSetupActive && previewCells.get(`${r},${c}`) === 'invalid') {
-      setShaking(true);
-      setTimeout(() => setShaking(false), 400);
-      return;
+    if (isSetupActive && setupShipSize && setupOrientation) {
+      // Recompute validity inline so shake triggers even without a prior hover
+      const cells       = previewShipCells(setupShipSize, r, c, setupOrientation);
+      const outOfBounds = cells.some(([cr, cc]) => cr < 0 || cr >= BOARD_SIZE || cc < 0 || cc >= BOARD_SIZE);
+      const collision   = !outOfBounds && cells.some(([cr, cc]) => board.grid[cr][cc] !== 'empty');
+      if (outOfBounds || collision) {
+        setShaking(true);
+        setTimeout(() => setShaking(false), 400);
+        return;
+      }
     }
     onCellClick(r, c);
   }
 
+  // Keep ref in sync so setup keyboard handler calls the freshest version
+  handleCellClickRef.current = handleCellClick;
+
+  const [cursorRow, cursorCol] = cursorCellRef.current;
+
   return (
-    <div className={`board-grid${shaking ? ' board-grid--shake' : ''}`}>
+    <div
+      role="grid"
+      aria-label={isOwn ? 'Your waters' : 'Enemy waters'}
+      className={`board-grid${shaking ? ' board-grid--shake' : ''}`}
+    >
       <div className="board-grid__header">
         <div />
         {COLUMN_LABELS.map(label => (
@@ -123,29 +233,53 @@ export default function BoardGrid({
         <div key={r} className="board-grid__row">
           <div className="board-grid__row-label">{r + 1}</div>
           {row.map((cellState, c) => {
+            // When keyboard is active on the enemy board, restrict 'attackable'
+            // to the cursor cell only — this prevents the CSS :hover highlight
+            // appearing on a different cell than the keyboard cursor.
+            const enemyCursorCell = isEnemyBoard && enemyKbMode
+              ? cursorRow === r && cursorCol === c
+              : true;
             const attackable = (
+              !!onCellClick    &&
               isEnemyBoard     &&
+              enemyCursorCell  &&
               cellState !== 'hit'  &&
               cellState !== 'miss' &&
               cellState !== 'sunk'
             );
 
-            const isFocused = isEnemyBoard &&
-              cursorCell[0] === r && cursorCell[1] === c;
+            const isFocused = (isEnemyBoard || isSetupKeyboard) && cursorRow === r && cursorCol === c;
+
+            // When revealShips=true expose unsunk enemy ship cells.
+            // placeShip marks grid cells as 'ship', not 'empty', so we match
+            // on 'ship' state — these cells are simply hidden from the player
+            // normally because isOwn=false suppresses the ship CSS class.
+            const isRevealedShip = revealShips && !isOwn && cellState === 'ship';
+
+            const effectiveName = shipAtCell(board.ships, r, c);
+            const effectiveState = isRevealedShip ? 'ship' : cellState;
 
             return (
               <Cell
                 key={c}
-                state={cellState}
-                isOwn={isOwn}
+                state={effectiveState}
+                isOwn={isOwn || isRevealedShip}
                 attackable={attackable}
                 setupClickable={isSetupActive}
                 previewState={previewCells.get(`${r},${c}`) ?? null}
                 focused={isFocused}
+                shipName={effectiveState === 'ship' ? effectiveName : undefined}
                 onClick={() => handleCellClick(r, c)}
                 onMouseEnter={() => {
+                  mouseActiveRef.current = true;
                   setHoverCell([r, c]);
-                  if (isEnemyBoard) setCursorCell([r, c]);
+                  if (isEnemyBoard) {
+                    // Mouse retakes control: clear keyboard mode and sync cursor
+                    setEnemyKbMode(false);
+                    moveCursor(r, c);
+                  }
+                  // Setup mode: sync keyboard cursor to mouse position
+                  if (isSetupKeyboard) moveCursor(r, c);
                 }}
                 onMouseLeave={() => setHoverCell(null)}
               />

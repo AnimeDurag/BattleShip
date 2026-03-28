@@ -3,6 +3,9 @@ import { useGameState } from './hooks/useGameState';
 import SetupScreen from './components/SetupScreen';
 import GameScreen from './components/GameScreen';
 import GameOver from './components/GameOver';
+import DifficultySelect from './components/DifficultySelect';
+import { useSessionStats } from './hooks/useSessionStats';
+import { useEffect, useRef, useState } from 'react';
 
 export default function App() {
   const {
@@ -16,16 +19,50 @@ export default function App() {
     setOrientation,
     placeSelectedShip,
     randomizePlacement,
+    clearBoard,
     beginGame,
+    selectDifficulty,
+    difficulty,
     fireAt,
     resetGame,
   } = useGameState();
 
-  const { phase, winner, turnCount } = gameState;
+  const { phase, winner, shotCount } = gameState;
+
+  // ── Session stats ────────────────────────────────────────────────────────
+  const { stats: sessionStats, recordResult } = useSessionStats();
+
+  // Guard against React StrictMode double-invocation and re-recording on
+  // re-renders: only record once per unique shotCount+winner combination.
+  const recordedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (phase === 'gameover' && winner && difficulty) {
+      const key = `${winner}-${shotCount}-${difficulty}`;
+      if (recordedRef.current !== key) {
+        recordedRef.current = key;
+        recordResult({ winner, shotCount, difficulty });
+      }
+    }
+    if (phase === 'setup') recordedRef.current = null;
+  }, [phase, winner, shotCount, difficulty, recordResult]);
+
+  // ── Board reveal — hides the GameOver overlay so the player can inspect
+  // the final board state, with a floating NEW BATTLE button to restart.
+  const [boardRevealed, setBoardRevealed] = useState(false);
+
+  // Reset boardRevealed when a new game starts.
+  useEffect(() => {
+    if (phase === 'setup') setBoardRevealed(false);
+  }, [phase]);
 
   return (
     <>
       <div className="scanlines" />
+
+      {/* ── Difficulty selection — blocks all interaction until chosen ── */}
+      {difficulty === null && (
+        <DifficultySelect onSelect={selectDifficulty} />
+      )}
 
       {/* ── Battle commencing transition ── */}
       {battleStarting && (
@@ -51,8 +88,13 @@ export default function App() {
                 ENEMY TURN
               </div>
               <div className="status-pill status-pill--neutral">
-                MISSILES FIRED: {turnCount}
+                {`MISSILES FIRED: ${shotCount}`}
               </div>
+              {difficulty && (
+                <div className={`status-pill status-pill--diff-${difficulty}`}>
+                  THREAT: {difficulty.toUpperCase()}
+                </div>
+              )}
               {aiThinking && (
                 <div className="header__thinking">AI TARGETING...</div>
               )}
@@ -62,6 +104,11 @@ export default function App() {
           {phase === 'setup' && (
             <div className="header__status">
               <div className="status-pill">FLEET DEPLOYMENT</div>
+              {difficulty && (
+                <div className={`status-pill status-pill--diff-${difficulty}`}>
+                  THREAT: {difficulty.toUpperCase()}
+                </div>
+              )}
             </div>
           )}
         </header>
@@ -72,10 +119,12 @@ export default function App() {
             playerBoard={gameState.playerBoard}
             setupState={setupState}
             allShipsPlaced={allShipsPlaced}
+            sessionStats={sessionStats}
             onSelectShip={selectShip}
             onSetOrientation={setOrientation}
             onCellClick={placeSelectedShip}
             onRandomize={randomizePlacement}
+            onClearBoard={clearBoard}
             onBeginGame={beginGame}
           />
         )}
@@ -91,12 +140,25 @@ export default function App() {
       </div>
 
       {/* ── Game over overlay ── */}
-      {phase === 'gameover' && winner && (
+      {phase === 'gameover' && winner && !boardRevealed && (
         <GameOver
           winner={winner}
-          turnCount={turnCount}
+          shotCount={shotCount}
+          difficulty={difficulty}
+          sessionStats={sessionStats}
           onRestart={resetGame}
+          onViewBoard={() => setBoardRevealed(true)}
         />
+      )}
+
+      {/* ── Floating NEW BATTLE button (shown when board is revealed) ── */}
+      {phase === 'gameover' && boardRevealed && (
+        <button
+          className="btn btn--primary floating-new-battle"
+          onClick={() => { setBoardRevealed(false); resetGame(); }}
+        >
+          ⟳ NEW BATTLE
+        </button>
       )}
     </>
   );

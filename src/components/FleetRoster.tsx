@@ -1,3 +1,4 @@
+import React from 'react';
 import { Ship } from '../models/types';
 import { FLEET } from '../utils/constants';
 
@@ -16,29 +17,33 @@ export default function FleetRoster({ ships, label, enemy = false }: FleetRoster
         const ship     = ships.find(s => s.name === def.name);
         const sunk     = ship?.sunk ?? false;
         const hitCount = ship?.hits.size ?? 0;
+        // Enemy ships with zero hits are "unknown" — show no block symbols at all.
+        // Once any cell is hit (or the ship is sunk), reveal the block display.
+        const contacted = hitCount > 0 || sunk;
 
         return (
-          <div key={def.name} className={`fleet-roster__ship${sunk ? ' fleet-roster__ship--sunk' : ''}`}>
+          <div
+            key={def.name}
+            className={[
+              'fleet-roster__ship',
+              `fleet-roster__ship--${def.name.toLowerCase()}`,
+              sunk ? 'fleet-roster__ship--sunk' : '',
+            ].filter(Boolean).join(' ')}
+          >
             <span className="fleet-roster__name">{def.name}</span>
 
-            <div className="fleet-roster__blocks">
-              {Array.from({ length: def.size }).map((_, i) => {
-                let mod = '';
-                if (sunk)           mod = 'fleet-roster__block--sunk';
-                else if (i < hitCount) mod = 'fleet-roster__block--hit';
-                return <div key={i} className={`fleet-roster__block ${mod}`} />;
-              })}
-            </div>
+            {/* Blocks: always shown for player ships; hidden for untouched enemy ships */}
+            {(!enemy || contacted) && (
+              <div className="fleet-roster__blocks">
+                {Array.from({ length: def.size }).map((_, i) => {
+                  let mod = '';
+                  if (sunk)              mod = 'fleet-roster__block--sunk';
+                  else if (i < hitCount) mod = 'fleet-roster__block--hit';
+                  return <div key={i} className={`fleet-roster__block ${mod}`} />;
+                })}
+              </div>
+            )}
 
-            {/* Show earned hit data on enemy fleet, full unknown only before any hits */}
-            {enemy && !sunk && hitCount === 0 && (
-              <span className="fleet-roster__status fleet-roster__status--unknown">UNKNOWN</span>
-            )}
-            {enemy && !sunk && hitCount > 0 && (
-              <span className="fleet-roster__status fleet-roster__status--hit">
-                {hitCount}/{def.size} HIT
-              </span>
-            )}
             {sunk && (
               <span className="fleet-roster__status fleet-roster__status--sunk">SUNK</span>
             )}

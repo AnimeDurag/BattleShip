@@ -30,6 +30,16 @@ body {
   overflow-x: hidden;
 }
 
+/* ─── Focus visible ───────────────────────────────────────────────────────── */
+/* Provides a visible keyboard focus indicator for all interactive elements.  */
+/* The enemy board already has .cell--focused for arrow-key navigation;       */
+/* this rule covers setup-phase buttons, ship roster items, and toggles.      */
+
+:focus-visible {
+  outline: 1px solid var(--amber);
+  outline-offset: 2px;
+}
+
 /* ─── Atmosphere ───────────────────────────────────────────────────────────── */
 
 .scanlines {
@@ -97,6 +107,32 @@ body {
 }
 
 .status-pill--neutral { color: var(--text); border-color: var(--border); }
+
+/* Difficulty-tinted pills — mirror the selector screen's threat-level palette */
+.status-pill--diff-easy {
+  color: var(--green);
+  border-color: rgba(0, 255, 136, 0.45);
+  background: rgba(0, 255, 136, 0.05);
+}
+
+.status-pill--diff-medium {
+  color: var(--amber);
+  border-color: rgba(240, 165, 0, 0.45);
+  background: var(--amber-glow);
+}
+
+.status-pill--diff-hard {
+  color: var(--sunk);
+  border-color: rgba(255, 107, 53, 0.45);
+  background: rgba(255, 107, 53, 0.05);
+}
+
+.status-pill--diff-sweaty {
+  color: var(--hit);
+  border-color: rgba(232, 57, 42, 0.45);
+  background: rgba(232, 57, 42, 0.06);
+  animation: extremePulse 2.2s ease-in-out infinite;
+}
 
 .header__thinking {
   font-size: 0.6rem;
@@ -330,6 +366,12 @@ body {
 .combat-log__entry--enemy  { color: #7a8aaa; }
 .combat-log__entry--system { color: var(--amber); opacity: 0.7; }
 
+@keyframes logEntryFlash {
+  0%   { background: rgba(240,165,0,0.18); }
+  100% { background: transparent; }
+}
+.combat-log__entry--new { animation: logEntryFlash 0.6s ease-out forwards; }
+
 /* ─── Setup Screen ─────────────────────────────────────────────────────────── */
 
 .setup-screen {
@@ -370,7 +412,6 @@ body {
 
 .ship-selector__item:hover                { border-color: var(--amber); }
 .ship-selector__item--selected            { border-color: var(--amber); color: var(--amber); background: var(--amber-glow); }
-.ship-selector__item--placed              { opacity: 0.38; pointer-events: none; border-color: var(--dim); }
 
 .ship-selector__dots { display: flex; gap: 3px; }
 .ship-selector__dot  { width: 6px; height: 6px; background: currentColor; opacity: 0.65; }
@@ -418,6 +459,51 @@ body {
   letter-spacing: 0.1em;
   margin-top: 4px;
   animation: blink 1.4s step-end infinite;
+}
+
+/* ─── Board locked overlay (AI turn) ──────────────────────────────────────────── */
+
+.game-screen__board-wrap {
+  position: relative;
+}
+
+.board-locked-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 4px,
+    rgba(0, 0, 0, 0.18) 4px,
+    rgba(0, 0, 0, 0.18) 8px
+  ),
+  linear-gradient(
+    rgba(240, 165, 0, 0.04),
+    rgba(240, 165, 0, 0.04)
+  );
+  border: 1px solid var(--border);
+  pointer-events: none;
+  animation: overlayFadeIn 0.15s ease-out;
+}
+
+.board-locked-overlay__text {
+  font-family: var(--display);
+  font-size: 0.6rem;
+  letter-spacing: 0.3em;
+  color: var(--amber);
+  opacity: 0.7;
+  animation: blink 1.0s step-end infinite;
+  background: var(--panel);
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* ─── Buttons ──────────────────────────────────────────────────────────────── */
@@ -478,17 +564,24 @@ body {
 .gameover-panel {
   border: 1px solid var(--border);
   background: var(--panel);
-  padding: 48px 56px;
+  padding: 40px 52px;
   text-align: center;
   position: relative;
   animation: slideUp 0.4s ease;
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
-.gameover-panel::before {
-  content: '';
+/* Replaced static ::before with a dynamic div so color can change on defeat */
+.gameover-panel__accent {
   position: absolute; top: 0; left: 0; right: 0;
   height: 2px;
   background: linear-gradient(90deg, transparent, var(--amber), transparent);
+}
+.gameover-panel__accent--defeat {
+  background: linear-gradient(90deg, transparent, var(--hit), transparent);
 }
 
 .gameover-panel__title {
@@ -506,7 +599,167 @@ body {
   font-size: 0.68rem;
   letter-spacing: 0.14em;
   color: var(--text);
-  margin-bottom: 28px;
+  margin-bottom: 24px;
+}
+
+.gameover-panel__btn { margin-top: 24px; }
+
+/* ─── Performance bar ──────────────────────────────────────────────────────── */
+
+.gameover-perf {
+  margin-bottom: 20px;
+}
+
+/* Score heading sits above the bar — never inside it */
+.gameover-perf__score-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.gameover-perf__score-num {
+  font-family: var(--display);
+  font-size: 1.6rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  /* color set via inline style to match rank */
+}
+
+.gameover-perf__score-unit {
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  color: var(--text);
+  text-transform: uppercase;
+}
+
+/* The bar itself — taller and glow-capable */
+.gameover-perf__bar-wrap {
+  position: relative;
+  height: 12px;
+  background: var(--border);
+  margin-bottom: 16px;
+  /* no overflow:hidden — lets box-shadow glow bleed out */
+}
+
+.gameover-perf__bar-fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  transition: width 0.8s ease-out;
+}
+
+/* ─── Rank badge ───────────────────────────────────────────────────────────── */
+
+.gameover-rank {
+  border: 1px solid;
+  padding: 12px 20px;
+  margin: 0 auto 12px;
+  display: inline-block;
+  min-width: 220px;
+  position: relative;
+}
+
+.gameover-rank__label {
+  font-size: 0.48rem;
+  letter-spacing: 0.3em;
+  opacity: 0.6;
+  margin-bottom: 4px;
+}
+
+.gameover-rank__name {
+  font-family: var(--display);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+}
+
+.gameover-rank__star {
+  font-size: 1.1rem;
+  margin-top: 4px;
+  animation: blink 1.6s step-end infinite;
+}
+
+/* Rank scale — small reference strip */
+.gameover-rank-scale {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.gameover-rank-scale__item {
+  font-size: 0.45rem;
+  letter-spacing: 0.1em;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+.gameover-rank-scale__item--active {
+  border-color: currentColor;
+  opacity: 1;
+}
+
+.gameover-perf__commentary {
+  font-size: 0.56rem;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
+/* ─── Session stats grid ───────────────────────────────────────────────────── */
+
+.gameover-stats {
+  border: 1px solid var(--border);
+  padding: 14px 16px;
+  margin-bottom: 4px;
+  text-align: left;
+}
+
+.gameover-stats__title {
+  font-family: var(--display);
+  font-size: 0.48rem;
+  letter-spacing: 0.28em;
+  color: var(--amber);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.gameover-stats__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px 8px;
+}
+
+.gameover-stats__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.gameover-stats__val {
+  font-family: var(--display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--bright);
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+.gameover-stats__val--win  { color: var(--amber); }
+.gameover-stats__val--loss { color: var(--hit); }
+.gameover-stats__val--best { color: var(--green); }
+
+.gameover-stats__key {
+  font-size: 0.44rem;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+  text-transform: uppercase;
+  text-align: center;
 }
 
 /* ─── Animations ───────────────────────────────────────────────────────────── */
@@ -528,6 +781,58 @@ body {
   color: var(--dim);
   letter-spacing: 0.06em;
   margin-bottom: 8px;
+}
+
+/* ─── Setup screen session stats ────────────────────────────────────────────── */
+/* Compact version of the gameover stats panel — fits in the 240px controls col */
+
+.setup-session {
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+}
+
+.setup-session__title {
+  font-family: var(--display);
+  font-size: 0.44rem;
+  letter-spacing: 0.28em;
+  color: var(--amber);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.setup-session__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 6px;
+}
+
+.setup-session__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.setup-session__val {
+  font-family: var(--display);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--bright);
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.setup-session__val--win  { color: var(--amber); }
+.setup-session__val--loss { color: var(--hit); }
+.setup-session__val--best { color: var(--green); }
+.setup-session__val--streak { color: var(--text); }
+
+.setup-session__key {
+  font-size: 0.4rem;
+  letter-spacing: 0.12em;
+  color: var(--dim);
+  text-transform: uppercase;
+  text-align: center;
 }
 
 /* Placed ships remain clickable and show a subtle reposition indicator */
@@ -561,6 +866,7 @@ body {
   background: rgba(5,13,26,0.92);
   display: flex; align-items: center; justify-content: center;
   z-index: 200;
+  pointer-events: all;
   animation: fadeIn 0.3s ease;
 }
 
@@ -596,4 +902,229 @@ body {
   outline: 2px solid var(--amber);
   outline-offset: -2px;
   z-index: 3;
+}
+
+/* ─── Difficulty Select Overlay ────────────────────────────────────────────── */
+
+.diff-overlay {
+  position: fixed; inset: 0;
+  background: rgba(5, 13, 26, 0.96);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+  animation: fadeIn 0.4s ease;
+  padding: 20px;
+  transition: background 0.3s ease;
+}
+
+/* Corner vignette layer — invisible by default, bleeds red when
+   the sweaty option is hovered. :has() watches a descendant hover
+   so no JS or extra markup is needed.                              */
+.diff-overlay::after {
+  content: '';
+  position: fixed; inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 40% 40% at 0%   0%,   rgba(232,57,42,0.55) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 100% 0%,   rgba(232,57,42,0.55) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 0%   100%, rgba(232,57,42,0.55) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 100% 100%, rgba(232,57,42,0.55) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.diff-overlay:has(.diff-option--extreme:hover)::after {
+  opacity: 1;
+  animation: cornerBleed 1.1s ease-in-out infinite;
+}
+
+@keyframes cornerBleed {
+  0%, 100% { opacity: 0.65; }
+  50%       { opacity: 1;    }
+}
+
+.diff-panel {
+  width: 100%;
+  max-width: 560px;
+  text-align: center;
+  animation: slideUp 0.4s ease;
+}
+
+.diff-panel__eyebrow {
+  font-size: 0.52rem;
+  letter-spacing: 0.32em;
+  color: var(--dim);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.diff-panel__title {
+  font-family: var(--display);
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: 0.28em;
+  color: var(--amber);
+  text-shadow: 0 0 24px rgba(240,165,0,0.45);
+  margin-bottom: 8px;
+}
+
+.diff-panel__sub {
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  color: var(--dim);
+  margin-bottom: 32px;
+}
+
+.diff-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+/* ── Individual option card ── */
+
+.diff-option {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 14px 18px;
+  cursor: pointer;
+  font-family: var(--mono);
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.16s, background 0.16s, box-shadow 0.16s;
+}
+
+/* Top bar accent line — animated in on hover */
+.diff-option::before {
+  content: '';
+  position: absolute; top: 0; left: -100%; right: 0;
+  height: 1px;
+  transition: left 0.3s ease;
+}
+
+.diff-option:hover::before { left: 0; }
+
+/* Top row: label + codename + arrow */
+.diff-option__top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.diff-option__label {
+  font-family: var(--display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  transition: color 0.16s;
+}
+
+.diff-option__codename {
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+  flex: 1;
+  transition: color 0.16s;
+}
+
+.diff-option__arrow {
+  font-size: 0.58rem;
+  color: var(--dim);
+  transition: color 0.16s, transform 0.16s;
+  opacity: 0;
+}
+
+/* Description — hidden until hover */
+.diff-option__desc {
+  font-size: 0.6rem;
+  letter-spacing: 0.07em;
+  line-height: 1.7;
+  margin-top: 0;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.28s ease, opacity 0.22s ease, margin-top 0.22s ease;
+  color: var(--text);
+}
+
+.diff-option:hover .diff-option__desc {
+  max-height: 120px;
+  opacity: 1;
+  margin-top: 10px;
+}
+
+.diff-option:hover .diff-option__arrow {
+  opacity: 1;
+  transform: translateX(3px);
+}
+
+/* ── Threat-level color variants ── */
+
+/* Low — muted green, low stakes */
+.diff-option--low { color: var(--text); }
+.diff-option--low .diff-option__label { color: var(--green); }
+.diff-option--low::before { background: var(--green); }
+.diff-option--low:hover {
+  border-color: var(--green);
+  background: rgba(0, 255, 136, 0.05);
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.1);
+}
+.diff-option--low:hover .diff-option__codename { color: rgba(0,255,136,0.5); }
+.diff-option--low:hover .diff-option__arrow    { color: var(--green); }
+
+/* Mid — amber, standard threat */
+.diff-option--mid { color: var(--text); }
+.diff-option--mid .diff-option__label { color: var(--amber); }
+.diff-option--mid::before { background: var(--amber); }
+.diff-option--mid:hover {
+  border-color: var(--amber);
+  background: var(--amber-glow);
+  box-shadow: 0 0 14px rgba(240, 165, 0, 0.15);
+}
+.diff-option--mid:hover .diff-option__codename { color: rgba(240,165,0,0.5); }
+.diff-option--mid:hover .diff-option__arrow    { color: var(--amber); }
+
+/* High — orange/sunk, elevated threat */
+.diff-option--high { color: var(--text); }
+.diff-option--high .diff-option__label { color: var(--sunk); }
+.diff-option--high::before { background: var(--sunk); }
+.diff-option--high:hover {
+  border-color: var(--sunk);
+  background: rgba(255, 107, 53, 0.06);
+  box-shadow: 0 0 14px rgba(255, 107, 53, 0.15);
+}
+.diff-option--high:hover .diff-option__codename { color: rgba(255,107,53,0.5); }
+.diff-option--high:hover .diff-option__arrow    { color: var(--sunk); }
+
+/* Extreme — red, maximum threat — label pulses */
+.diff-option--extreme { color: var(--text); }
+.diff-option--extreme .diff-option__label {
+  color: var(--hit);
+  animation: extremePulse 2.2s ease-in-out infinite;
+}
+.diff-option--extreme::before { background: var(--hit); }
+.diff-option--extreme:hover {
+  border-color: var(--hit);
+  background: rgba(232, 57, 42, 0.07);
+  box-shadow: 0 0 18px rgba(232, 57, 42, 0.2);
+}
+.diff-option--extreme:hover .diff-option__label { animation: none; color: var(--hit); }
+.diff-option--extreme:hover .diff-option__codename { color: rgba(232,57,42,0.5); }
+.diff-option--extreme:hover .diff-option__arrow    { color: var(--hit); }
+
+@keyframes extremePulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+/* Footer note */
+.diff-panel__footer {
+  font-size: 0.52rem;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+  opacity: 0.7;
 }

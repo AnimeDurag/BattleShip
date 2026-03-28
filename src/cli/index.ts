@@ -4,7 +4,7 @@ import { placeShip } from '../models/Board';
 import { createShip } from '../models/Ship';
 import { createAIState, getAIMove, updateAIState } from '../ai/opponent';
 import { FLEET } from '../utils/constants';
-import { randomInt, randomOrientation, formatCoordinate } from '../utils/helpers';
+import { randomBoard, formatCoordinate } from '../utils/helpers';
 import {
   displayBoards,
   displayPlayerBoard,
@@ -23,27 +23,10 @@ import {
 
 // ─── Ship Placement ────────────────────────────────────────────────────────────
 
+// Delegates to randomBoard() in helpers.ts — guarded against infinite loops,
+// consistent with the React UI, and ready for future multiplayer use.
 function placeShipsRandomly(state: GameState, target: 'playerBoard' | 'opponentBoard'): GameState {
-  let board = state[target];
-
-  for (const def of FLEET) {
-    const ship = createShip(def.name, def.size);
-    let placed = false;
-
-    while (!placed) {
-      const row = randomInt(10);
-      const col = randomInt(10);
-      const orientation = randomOrientation();
-      const result = placeShip(board, ship, row, col, orientation);
-
-      if (result) {
-        board = result;
-        placed = true;
-      }
-    }
-  }
-
-  return { ...state, [target]: board };
+  return { ...state, [target]: randomBoard() };
 }
 
 function placeShipsManually(state: GameState): GameState {

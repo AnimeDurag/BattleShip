@@ -7,6 +7,7 @@ interface CellProps {
   setupClickable?: boolean;
   focused?: boolean;
   previewState?: 'valid' | 'invalid' | null;
+  shipName?: string;           // name of the ship occupying this cell — drives color
   onClick?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
@@ -25,6 +26,7 @@ export default function Cell({
   setupClickable = false,
   focused        = false,
   previewState   = null,
+  shipName,
   onClick,
   onMouseEnter,
   onMouseLeave,
@@ -37,7 +39,10 @@ export default function Cell({
   if (previewState === 'valid')        classes.push('cell--preview-valid');
   else if (previewState === 'invalid') classes.push('cell--preview-invalid');
   else {
-    if (state === 'ship' && isOwn) classes.push('cell--ship');
+    if (state === 'ship' && isOwn) {
+      classes.push('cell--ship');
+      if (shipName) classes.push(`cell--ship-${shipName.toLowerCase()}`);
+    }
     if (state === 'hit')           classes.push('cell--hit');
     if (state === 'miss')          classes.push('cell--miss');
     if (state === 'sunk')          classes.push('cell--sunk');

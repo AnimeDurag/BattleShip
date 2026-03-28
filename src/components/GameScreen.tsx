@@ -9,6 +9,7 @@ interface GameScreenProps {
   log: LogEntry[];
   aiThinking: boolean;
   onFireAt: (row: number, col: number) => void;
+  revealEnemyShips?: boolean;   // show hidden AI ships after game over
 }
 
 export default function GameScreen({
@@ -16,9 +17,12 @@ export default function GameScreen({
   log,
   aiThinking,
   onFireAt,
+  revealEnemyShips = false,
 }: GameScreenProps) {
-  const { playerBoard, opponentBoard, currentTurn, turnCount } = gameState;
-  const isPlayerTurn = currentTurn === 'player' && !aiThinking;
+  const { playerBoard, opponentBoard, currentTurn } = gameState;
+  // Also gate on phase: during gameover the board is locked even if
+  // currentTurn is still 'player' from the final move.
+  const isPlayerTurn = gameState.phase === 'playing' && currentTurn === 'player' && !aiThinking;
 
   return (
     <div className="game-screen">
@@ -44,12 +48,22 @@ export default function GameScreen({
       {/* ── Enemy board ── */}
       <div className="game-screen__board-col">
         <div className="board-label">ENEMY WATERS</div>
-        <BoardGrid
-          board={opponentBoard}
-          isOwn={false}
-          phase="playing"
-          onCellClick={isPlayerTurn ? onFireAt : undefined}
-        />
+        <div className="game-screen__board-wrap">
+          <BoardGrid
+            board={opponentBoard}
+            isOwn={false}
+            phase="playing"
+            onCellClick={isPlayerTurn ? onFireAt : undefined}
+            revealShips={revealEnemyShips}
+          />
+          {!isPlayerTurn && (
+            <div className="board-locked-overlay" aria-hidden="true">
+              <span className="board-locked-overlay__text">
+                {aiThinking ? 'INCOMING…' : 'STAND BY'}
+              </span>
+            </div>
+          )}
+        </div>
         {isPlayerTurn && (
           <p className="game-screen__hint">SELECT TARGET COORDINATES</p>
         )}

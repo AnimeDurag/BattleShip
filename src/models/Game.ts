@@ -10,6 +10,7 @@ export function createGame(): GameState {
     currentTurn: 'player',
     winner: null,
     turnCount: 0,
+    shotCount: 0,
   };
 }
 
@@ -72,14 +73,15 @@ export function playerAttack(
     winner:       playerWon ? 'player'    : null,
     currentTurn:  playerWon ? 'player'    : 'opponent',
     turnCount:    state.turnCount + 1,
+    shotCount:    state.shotCount + 1,
   };
 
   return { state: newState, outcome };
 }
 
 // Processes an AI attack on the player board.
-// Also increments turnCount so the counter reflects total rounds elapsed,
-// not just player moves — making defeat screen messaging accurate.
+// Does not modify shotCount — the hook increments it via functional update
+// so the total-shots count stays accurate despite React batching.
 export function opponentAttack(
   state: GameState,
   row: number,
@@ -99,7 +101,7 @@ export function opponentAttack(
     phase:        opponentWon ? 'gameover'  : 'playing',
     winner:       opponentWon ? 'opponent'  : null,
     currentTurn:  opponentWon ? 'opponent'  : 'player',
-    turnCount:    state.turnCount + 1,
+    // shotCount is player-only — the hook increments it separately after AI fires
   };
 
   return { state: newState, outcome };
