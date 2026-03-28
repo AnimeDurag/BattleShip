@@ -80,8 +80,9 @@ export function playerAttack(
 }
 
 // Processes an AI attack on the player board.
-// Does not modify shotCount — the hook increments it via functional update
-// so the total-shots count stays accurate despite React batching.
+// Increments turnCount (total attacks by both sides) but not shotCount
+// (player shots only). The hook increments shotCount for the AI's shot
+// via a functional update so the header total stays accurate.
 export function opponentAttack(
   state: GameState,
   row: number,
@@ -101,7 +102,7 @@ export function opponentAttack(
     phase:        opponentWon ? 'gameover'  : 'playing',
     winner:       opponentWon ? 'opponent'  : null,
     currentTurn:  opponentWon ? 'opponent'  : 'player',
-    // shotCount is player-only — the hook increments it separately after AI fires
+    turnCount:    state.turnCount + 1,
   };
 
   return { state: newState, outcome };

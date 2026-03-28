@@ -16,7 +16,7 @@ export interface SessionStats {
 
 export interface GameResult {
   winner:     'player' | 'opponent';
-  shotCount:  number;
+  shotCount:  number;   // player shots fired — used by calcScore and totalShots
   difficulty: Difficulty;
 }
 
@@ -61,6 +61,7 @@ export function applyResult(stats: SessionStats, result: GameResult): SessionSta
 }
 
 // ─── Derived helpers ──────────────────────────────────────────────────────────
+// Pure functions, not stored in state — compute on render.
 
 export function winRate(stats: SessionStats): number | null {
   return stats.gamesPlayed === 0
