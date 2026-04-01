@@ -12,7 +12,7 @@ export default defineConfig({
   root: '.',
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: 'hidden',
     rollupOptions: {
       input: './index.html',
     },

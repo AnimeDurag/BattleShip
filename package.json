@@ -1,19 +1,29 @@
 {
   "name": "battleship",
-  "version": "1.0.0",
-  "main": "index.js",
+  "version": "1.2.0",
+  "private": true,
+  "description": "Single-player Battleship game with four AI difficulty tiers, built with React 19 and TypeScript 5.9.",
+  "author": "Demond Allen Counce",
+  "license": "ISC",
+  "homepage": "https://battleshiproj.netlify.app",
+  "engines": {
+    "node": ">=20",
+    "npm": ">=9"
+  },
   "scripts": {
-    "start": "ts-node src/cli/index.ts",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "keywords": [
+    "battleship",
+    "game",
+    "react",
+    "typescript"
+  ],
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
