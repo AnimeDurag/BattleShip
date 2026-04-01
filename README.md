@@ -1,4 +1,4 @@
-# BATTLESHIP V1.2
+# BATTLESHIP
 
 A full-featured, single-player Battleship game built with React 19, TypeScript 5.9, and Vite 6. Play against four AI difficulty tiers — from erratic random fire to a near-optimal probability-density engine.
 
@@ -15,11 +15,6 @@ A full-featured, single-player Battleship game built with React 19, TypeScript 5
   - [Running Locally](#running-locally)
   - [Running Tests](#running-tests)
   - [Building for Production](#building-for-production)
-- [Deployment](#deployment)
-  - [Netlify (Recommended)](#netlify-recommended)
-  - [Vercel](#vercel)
-  - [GitHub Pages](#github-pages)
-  - [Self-Hosted / VPS](#self-hosted--vps)
 - [AI Difficulty Tiers](#ai-difficulty-tiers)
 - [Scoring System](#scoring-system)
 - [Scripts Reference](#scripts-reference)
@@ -159,6 +154,7 @@ npm run preview
 The repo ships with a `netlify.toml` that configures everything automatically.
 
 
+---
 ## AI Difficulty Tiers
 
 | Tier   | Codename  | Strategy                                                                 |
