@@ -352,7 +352,7 @@ describe('scoring integration', () => {
   it('a perfect 17-shot game records bestScore of 100', () => {
     const s = applyResult(initialSessionStats(), win(MIN_SHOTS_TO_WIN));
     expect(s.bestScore).toBe(100);
-    expect(s.bestScore).toBe(calcScore(MIN_SHOTS_TO_WIN));
+    expect(s.bestScore).toBe(calcScore(MIN_SHOTS_TO_WIN, 'medium'));
   });
 
   it('losses never update bestScore regardless of shot count', () => {

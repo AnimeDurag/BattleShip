@@ -39,7 +39,7 @@ export function initialSessionStats(): SessionStats {
 
 export function applyResult(stats: SessionStats, result: GameResult): SessionStats {
   const isWin   = result.winner === 'player';
-  const score   = isWin ? calcScore(result.shotCount) : null;
+  const score   = isWin ? calcScore(result.shotCount, result.difficulty) : null;
 
   const newStreak     = isWin ? stats.winStreak + 1 : 0;
   const newBestStreak = Math.max(stats.bestWinStreak, newStreak);

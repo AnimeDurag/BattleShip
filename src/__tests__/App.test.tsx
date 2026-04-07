@@ -1,12 +1,18 @@
 /**
  * App component tests
  *
- * Covers phase routing (setup → playing → gameover), difficulty selection
- * overlay, battle-starting transition, header status pills, session result
- * recording, and the StrictMode double-invocation guard on recordResult.
+ * Covers screen routing (menu → game), phase routing within the game tree
+ * (setup → playing → gameover), battle-starting transition, header status pills,
+ * session result recording, StrictMode double-invocation guard, and board reveal.
  *
- * Strategy: mock useGameState and useSessionStats so the test controls every
- * piece of state directly — no real hooks, no timers, no AI calls.
+ * Strategy: mock useGameState, useSessionStats, and all child components so the
+ * test controls every piece of state directly — no real hooks, no timers, no AI.
+ *
+ * Navigation into the game tree is done by firing a click on one of the
+ * difficulty buttons rendered by the MainMenu mock. This is more reliable than
+ * calling lastMenuProps.onSoloStart because the click handler captures
+ * props.onSoloStart in its own closure at render time, independent of any
+ * module-level variable that could be stale or un-populated.
  *
  * Required jest config:   testEnvironment: 'jsdom'
  * Required packages:      @testing-library/react  @testing-library/jest-dom
@@ -20,41 +26,59 @@ import type { SetupState, LogEntry } from '../hooks/useGameState';
 
 // ─── Module mocks ─────────────────────────────────────────────────────────────
 
-// Mock CSS import so Jest doesn't choke on it
 jest.mock('../styles/global.css', () => ({}), { virtual: true });
 
-// Mock child components to their key rendered text so tests stay fast and
-// isolated from those components' own logic.
-jest.mock('../components/SetupScreen',      () => () => <div>SETUP_SCREEN</div>);
-jest.mock('../components/GameScreen',       () => () => <div>GAME_SCREEN</div>);
-jest.mock('../components/DifficultySelect', () => ({ onSelect }: { onSelect: (d: string) => void }) => (
-  <button onClick={() => onSelect('medium')}>DIFFICULTY_SELECT</button>
-));
-// Control useGameState entirely from tests
-const mockUseGameState = jest.fn();
-// GameOver mock stores latest props so tests can invoke onViewBoard/onRestart
-// without needing jest.doMock or mockImplementation.
+jest.mock('../components/SetupScreen', () => () => <div>SETUP_SCREEN</div>);
+jest.mock('../components/GameScreen',  () => () => <div>GAME_SCREEN</div>);
+
+// MainMenu mock — renders MAIN_MENU text plus one button per difficulty so
+// tests can navigate into the game tree via fireEvent.click. Each button's
+// onClick captures props.onSoloStart in its own closure at render time,
+// so navigation works regardless of the state of lastMenuProps.
+// lastMenuProps is still captured for prop-value assertions (e.g. sessionStats).
+let lastMenuProps: Record<string, any> = {};
+jest.mock('../components/Mainmenu', () => (props: Record<string, any>) => {
+  lastMenuProps = props;
+  return (
+    <>
+      <div>MAIN_MENU</div>
+      <button onClick={() => props.onSoloStart('easy')}>SOLO_EASY</button>
+      <button onClick={() => props.onSoloStart('medium')}>SOLO_MEDIUM</button>
+      <button onClick={() => props.onSoloStart('hard')}>SOLO_HARD</button>
+      <button onClick={() => props.onSoloStart('sweaty')}>SOLO_SWEATY</button>
+    </>
+  );
+});
+
+// GameOver mock — captures latest props so tests can invoke onRestart/onViewBoard.
 let lastGameOverProps: Record<string, any> = {};
 jest.mock('../components/GameOver', () => (props: Record<string, any>) => {
   lastGameOverProps = props;
   return <div>GAME_OVER</div>;
 });
 
+// useGameState mock — fully controlled per test.
+const mockUseGameState = jest.fn();
 jest.mock('../hooks/useGameState', () => ({
   useGameState: () => mockUseGameState(),
 }));
 
-// Control useSessionStats — expose recordResult as a jest.fn() so we can spy on it
+// useSessionStats mock — expose recordResult as a jest.fn() to spy on.
+// Spread the real module so named exports (winRate, avgShots, initialSessionStats)
+// remain available to MainMenu, which imports them directly alongside the hook.
 const mockRecordResult = jest.fn();
 jest.mock('../hooks/useSessionStats', () => {
   const actual = jest.requireActual('../hooks/useSessionStats');
   return {
-    useSessionStats: () => ({ stats: actual.initialSessionStats(), recordResult: mockRecordResult }),
+    ...actual,
+    useSessionStats: () => ({
+      stats: actual.initialSessionStats(),
+      recordResult: mockRecordResult,
+    }),
   };
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 
 const baseSetupState: SetupState = {
   placedShipNames:  [],
@@ -63,68 +87,150 @@ const baseSetupState: SetupState = {
 };
 
 function makeGameState(overrides: Partial<GameState> = {}): GameState {
-  // Use createGame() so the object always has turnCount and every other field
-  // that App.tsx destructures — avoids any mismatch with partial construction.
   return { ...createGame(), ...overrides };
 }
 
 function defaultHookState(overrides: Partial<ReturnType<typeof mockUseGameState>> = {}) {
   return {
-    gameState:         makeGameState(),
-    setupState:        baseSetupState,
-    log:               [] as LogEntry[],
-    aiThinking:        false,
-    battleStarting:    false,
-    allShipsPlaced:    false,
-    difficulty:        'medium' as const,
-    selectShip:        jest.fn(),
-    setOrientation:    jest.fn(),
-    placeSelectedShip: jest.fn(),
-    randomizePlacement:jest.fn(),
-    beginGame:         jest.fn(),
-    selectDifficulty:  jest.fn(),
-    fireAt:            jest.fn(),
-    resetGame:         jest.fn(),
+    gameState:          makeGameState(),
+    setupState:         baseSetupState,
+    log:                [] as LogEntry[],
+    aiThinking:         false,
+    battleStarting:     false,
+    allShipsPlaced:     false,
+    difficulty:         'medium' as const,
+    playerShotCount:    0,
+    selectShip:         jest.fn(),
+    setOrientation:     jest.fn(),
+    placeSelectedShip:  jest.fn(),
+    randomizePlacement: jest.fn(),
+    clearBoard:         jest.fn(),
+    beginGame:          jest.fn(),
+    selectDifficulty:   jest.fn(),
+    fireAt:             jest.fn(),
+    resetGame:          jest.fn(),
     ...overrides,
   };
 }
 
-// Import App AFTER mocks are set up
+// Clicks the SOLO_MEDIUM button rendered by the MainMenu mock, navigating App
+// from 'menu' screen to 'game' screen via the button's own closure over props.
+function clickSoloMedium() {
+  act(() => { fireEvent.click(screen.getByText('SOLO_MEDIUM')); });
+}
+
+// Import App AFTER mocks are set up.
 import App from '../App';
 
 beforeEach(() => {
   jest.clearAllMocks();
+  lastMenuProps     = {};
   lastGameOverProps = {};
   mockUseGameState.mockReturnValue(defaultHookState());
 });
 
-// ─── Phase routing ────────────────────────────────────────────────────────────
+// ─── Screen routing ───────────────────────────────────────────────────────────
 
-describe('App — phase routing', () => {
+describe('App — screen routing', () => {
+  it('renders MainMenu on initial load', () => {
+    render(<App />);
+    expect(screen.getByText('MAIN_MENU')).toBeDefined();
+    expect(screen.queryByText('SETUP_SCREEN')).toBeNull();
+    expect(screen.queryByText('GAME_SCREEN')).toBeNull();
+  });
+
+  it('transitions to the game tree when a difficulty button is clicked', () => {
+    const mockSelectDifficulty = jest.fn();
+    mockUseGameState.mockReturnValue(defaultHookState({ selectDifficulty: mockSelectDifficulty }));
+    render(<App />);
+
+    act(() => { fireEvent.click(screen.getByText('SOLO_HARD')); });
+
+    expect(screen.queryByText('MAIN_MENU')).toBeNull();
+    expect(screen.getByText('SETUP_SCREEN')).toBeDefined();
+    expect(mockSelectDifficulty).toHaveBeenCalledWith('hard');
+  });
+
+  it('calls selectDifficulty with the correct value for each difficulty button', () => {
+    const difficulties = ['easy', 'medium', 'hard', 'sweaty'] as const;
+    for (const diff of difficulties) {
+      const mockSelectDifficulty = jest.fn();
+      mockUseGameState.mockReturnValue(defaultHookState({ selectDifficulty: mockSelectDifficulty }));
+
+      const { unmount } = render(<App />);
+      act(() => { fireEvent.click(screen.getByText('SOLO_' + diff.toUpperCase())); });
+      expect(mockSelectDifficulty).toHaveBeenCalledWith(diff);
+      unmount();
+    }
+  });
+
+  it('returns to MainMenu after handleRestart is called from GameOver', () => {
+    // Start in gameover so GameOver renders immediately on entry to the game
+    // tree, populating lastGameOverProps.onRestart before we call it.
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState: makeGameState({ phase: 'gameover', winner: 'player' }),
+    }));
+    render(<App />);
+    clickSoloMedium();
+
+    expect(screen.queryByText('MAIN_MENU')).toBeNull();
+    expect(screen.getByText('GAME_OVER')).toBeDefined();
+
+    act(() => { lastGameOverProps.onRestart?.(); });
+    expect(screen.getByText('MAIN_MENU')).toBeDefined();
+  });
+
+  it('calls resetGame when returning to the menu via GameOver onRestart', () => {
+    const mockResetGame = jest.fn();
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState: makeGameState({ phase: 'gameover', winner: 'opponent' }),
+      resetGame: mockResetGame,
+    }));
+    render(<App />);
+    clickSoloMedium();
+
+    act(() => { lastGameOverProps.onRestart?.(); });
+    expect(mockResetGame).toHaveBeenCalledTimes(1);
+  });
+
+  it('MainMenu receives the sessionStats prop', () => {
+    render(<App />);
+    expect(lastMenuProps.sessionStats).toBeDefined();
+  });
+});
+
+// ─── Phase routing within the game tree ──────────────────────────────────────
+
+describe('App — phase routing (game tree)', () => {
+  function renderInGame() {
+    const r = render(<App />);
+    clickSoloMedium();
+    return r;
+  }
+
   it('renders SetupScreen when phase is setup', () => {
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState: makeGameState({ phase: 'setup' }),
     }));
-    render(<App />);
+    renderInGame();
     expect(screen.getByText('SETUP_SCREEN')).toBeDefined();
     expect(screen.queryByText('GAME_SCREEN')).toBeNull();
-    expect(screen.queryByText('GAME_OVER')).toBeNull();
   });
 
   it('renders GameScreen when phase is playing', () => {
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState: makeGameState({ phase: 'playing' }),
     }));
-    render(<App />);
+    renderInGame();
     expect(screen.getByText('GAME_SCREEN')).toBeDefined();
     expect(screen.queryByText('SETUP_SCREEN')).toBeNull();
   });
 
-  it('renders GameScreen during gameover phase (board remains visible)', () => {
+  it('renders GameScreen during gameover (board stays visible)', () => {
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState: makeGameState({ phase: 'gameover', winner: 'player' }),
     }));
-    render(<App />);
+    renderInGame();
     expect(screen.getByText('GAME_SCREEN')).toBeDefined();
   });
 
@@ -132,48 +238,38 @@ describe('App — phase routing', () => {
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState: makeGameState({ phase: 'gameover', winner: 'player' }),
     }));
-    render(<App />);
+    renderInGame();
     expect(screen.getByText('GAME_OVER')).toBeDefined();
   });
 
-  it('does not render GameOver when phase is gameover but winner is null', () => {
+  it('does not render GameOver when winner is null', () => {
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState: makeGameState({ phase: 'gameover', winner: null }),
     }));
-    render(<App />);
+    renderInGame();
     expect(screen.queryByText('GAME_OVER')).toBeNull();
-  });
-});
-
-// ─── Difficulty selection overlay ─────────────────────────────────────────────
-
-describe('App — difficulty selection overlay', () => {
-  it('renders DifficultySelect when difficulty is null', () => {
-    mockUseGameState.mockReturnValue(defaultHookState({ difficulty: null }));
-    render(<App />);
-    expect(screen.getByText('DIFFICULTY_SELECT')).toBeDefined();
-  });
-
-  it('does not render DifficultySelect when difficulty is already chosen', () => {
-    mockUseGameState.mockReturnValue(defaultHookState({ difficulty: 'medium' }));
-    render(<App />);
-    expect(screen.queryByText('DIFFICULTY_SELECT')).toBeNull();
   });
 });
 
 // ─── Battle-starting transition ───────────────────────────────────────────────
 
 describe('App — battle-starting overlay', () => {
+  function renderInGame() {
+    const r = render(<App />);
+    clickSoloMedium();
+    return r;
+  }
+
   it('renders the BATTLE COMMENCING overlay when battleStarting is true', () => {
     mockUseGameState.mockReturnValue(defaultHookState({ battleStarting: true }));
-    render(<App />);
+    renderInGame();
     expect(screen.getByText('BATTLE COMMENCING')).toBeDefined();
     expect(screen.getByText('PREPARE FOR ENGAGEMENT')).toBeDefined();
   });
 
-  it('does not render the BATTLE COMMENCING overlay when battleStarting is false', () => {
+  it('does not render the overlay when battleStarting is false', () => {
     mockUseGameState.mockReturnValue(defaultHookState({ battleStarting: false }));
-    render(<App />);
+    renderInGame();
     expect(screen.queryByText('BATTLE COMMENCING')).toBeNull();
   });
 });
@@ -181,13 +277,22 @@ describe('App — battle-starting overlay', () => {
 // ─── Header status pills ──────────────────────────────────────────────────────
 
 describe('App — header status', () => {
-  it('shows BATTLESHIP logo', () => {
-    render(<App />);
-    expect(screen.getByText('SHIP')).toBeDefined(); // split across logo span
+  function renderInGame() {
+    const r = render(<App />);
+    clickSoloMedium();
+    return r;
+  }
+
+  it('shows BATTLESHIP logo in the game tree', () => {
+    renderInGame();
+    expect(screen.getByText('SHIP')).toBeDefined();
   });
 
   it('shows FLEET DEPLOYMENT pill during setup phase', () => {
-    render(<App />);
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState: makeGameState({ phase: 'setup' }),
+    }));
+    renderInGame();
     expect(screen.getByText('FLEET DEPLOYMENT')).toBeDefined();
   });
 
@@ -195,7 +300,7 @@ describe('App — header status', () => {
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState: makeGameState({ phase: 'playing' }),
     }));
-    render(<App />);
+    renderInGame();
     expect(screen.getByText('YOUR TURN')).toBeDefined();
     expect(screen.getByText('ENEMY TURN')).toBeDefined();
   });
@@ -204,7 +309,7 @@ describe('App — header status', () => {
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState: makeGameState({ phase: 'playing', shotCount: 7 }),
     }));
-    render(<App />);
+    renderInGame();
     expect(screen.getByText('MISSILES FIRED: 7')).toBeDefined();
   });
 
@@ -213,7 +318,7 @@ describe('App — header status', () => {
       gameState:  makeGameState({ phase: 'playing' }),
       difficulty: 'hard',
     }));
-    render(<App />);
+    renderInGame();
     expect(screen.getByText('THREAT: HARD')).toBeDefined();
   });
 
@@ -222,7 +327,7 @@ describe('App — header status', () => {
       gameState:  makeGameState({ phase: 'playing' }),
       aiThinking: true,
     }));
-    render(<App />);
+    renderInGame();
     expect(screen.getByText('AI TARGETING...')).toBeDefined();
   });
 
@@ -231,29 +336,33 @@ describe('App — header status', () => {
       gameState:  makeGameState({ phase: 'playing' }),
       aiThinking: false,
     }));
-    render(<App />);
+    renderInGame();
     expect(screen.queryByText('AI TARGETING...')).toBeNull();
   });
 
   it('shows THREAT pill in setup phase when difficulty is set', () => {
     mockUseGameState.mockReturnValue(defaultHookState({ difficulty: 'sweaty' }));
-    render(<App />);
+    renderInGame();
     expect(screen.getByText('THREAT: SWEATY')).toBeDefined();
   });
 });
 
-// ─── Session result recording (lines 37–47) ───────────────────────────────────
+// ─── Session result recording ─────────────────────────────────────────────────
 
 describe('App — session result recording', () => {
+  function renderInGame() {
+    const r = render(<App />);
+    clickSoloMedium();
+    return r;
+  }
+
   it('calls recordResult once when phase transitions to gameover', () => {
     mockUseGameState.mockReturnValue(defaultHookState({
-      gameState: makeGameState({ phase: 'gameover', winner: 'player', shotCount: 20 }),
+      gameState:  makeGameState({ phase: 'gameover', winner: 'player', shotCount: 20 }),
       difficulty: 'medium',
     }));
-    render(<App />);
+    renderInGame();
     expect(mockRecordResult).toHaveBeenCalledTimes(1);
-    // Check the stable fields. The numeric shot/turn-count field is tested in the
-    // useSessionStats suite; its name may differ across App versions.
     expect(mockRecordResult).toHaveBeenCalledWith(
       expect.objectContaining({ winner: 'player', difficulty: 'medium' })
     );
@@ -263,7 +372,7 @@ describe('App — session result recording', () => {
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState: makeGameState({ phase: 'setup' }),
     }));
-    render(<App />);
+    renderInGame();
     expect(mockRecordResult).not.toHaveBeenCalled();
   });
 
@@ -271,15 +380,15 @@ describe('App — session result recording', () => {
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState: makeGameState({ phase: 'playing' }),
     }));
-    render(<App />);
+    renderInGame();
     expect(mockRecordResult).not.toHaveBeenCalled();
   });
 
-  it('does not call recordResult when winner is null even if phase is gameover', () => {
+  it('does not call recordResult when winner is null', () => {
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState: makeGameState({ phase: 'gameover', winner: null }),
     }));
-    render(<App />);
+    renderInGame();
     expect(mockRecordResult).not.toHaveBeenCalled();
   });
 
@@ -288,39 +397,35 @@ describe('App — session result recording', () => {
       gameState:  makeGameState({ phase: 'gameover', winner: 'opponent', shotCount: 40 }),
       difficulty: null,
     }));
-    render(<App />);
+    renderInGame();
     expect(mockRecordResult).not.toHaveBeenCalled();
   });
 
   it('does not double-record when the game-over state rerenders with the same values', () => {
-    // The recordedRef guard prevents re-recording on re-renders with the same key.
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState:  makeGameState({ phase: 'gameover', winner: 'player', shotCount: 20 }),
       difficulty: 'easy',
     }));
-    const { rerender } = render(<App />);
+    const { rerender } = renderInGame();
     expect(mockRecordResult).toHaveBeenCalledTimes(1);
 
     rerender(<App />);
-    expect(mockRecordResult).toHaveBeenCalledTimes(1); // still only once
+    expect(mockRecordResult).toHaveBeenCalledTimes(1);
   });
 
   it('resets the recorded key when phase returns to setup', () => {
-    // First render: gameover -> records once.
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState:  makeGameState({ phase: 'gameover', winner: 'player', shotCount: 20 }),
       difficulty: 'medium',
     }));
-    const { rerender } = render(<App />);
+    const { rerender } = renderInGame();
     expect(mockRecordResult).toHaveBeenCalledTimes(1);
 
-    // Transition to setup: recordedRef is cleared.
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState: makeGameState({ phase: 'setup' }),
     }));
     act(() => { rerender(<App />); });
 
-    // Back to gameover with the same values - should record again because ref was reset.
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState:  makeGameState({ phase: 'gameover', winner: 'player', shotCount: 20 }),
       difficulty: 'medium',
@@ -328,74 +433,85 @@ describe('App — session result recording', () => {
     act(() => { rerender(<App />); });
     expect(mockRecordResult).toHaveBeenCalledTimes(2);
   });
+
+  it('records again when shotCount changes in gameover without returning to setup (line 41)', () => {
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState:  makeGameState({ phase: 'gameover', winner: 'player', shotCount: 20 }),
+      difficulty: 'medium',
+    }));
+    const { rerender } = renderInGame();
+    expect(mockRecordResult).toHaveBeenCalledTimes(1);
+
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState:  makeGameState({ phase: 'gameover', winner: 'player', shotCount: 30 }),
+      difficulty: 'medium',
+    }));
+    act(() => { rerender(<App />); });
+    expect(mockRecordResult).toHaveBeenCalledTimes(2);
+  });
 });
 
-// ─── Board reveal + floating NEW BATTLE (App lines 144–152) ───────────────────
+// ─── Board reveal + floating NEW BATTLE ──────────────────────────────────────
 
 describe('App — board reveal and floating NEW BATTLE', () => {
+  function renderInGame() {
+    const r = render(<App />);
+    clickSoloMedium();
+    return r;
+  }
+
   it('renders GameOver overlay when gameover and board is not yet revealed', () => {
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState: makeGameState({ phase: 'gameover', winner: 'player' }),
     }));
-    render(<App />);
+    renderInGame();
     expect(screen.getByText('GAME_OVER')).toBeDefined();
     expect(screen.queryByText('⟳ NEW BATTLE')).toBeNull();
   });
 
-  it('hides GameOver and shows floating NEW BATTLE when onViewBoard is clicked (line 145)', () => {
+  it('hides GameOver and shows floating NEW BATTLE when onViewBoard is clicked', () => {
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState: makeGameState({ phase: 'gameover', winner: 'player' }),
     }));
-    const { rerender } = render(<App />);
-    expect(screen.getByText('GAME_OVER')).toBeDefined();
+    const { rerender } = renderInGame();
 
-    // Trigger the onViewBoard callback that App passed to GameOver
     act(() => { lastGameOverProps.onViewBoard?.(); });
     rerender(<App />);
 
-    // GameOver is hidden (boardRevealed=true so !boardRevealed condition fails)
     expect(screen.queryByText('GAME_OVER')).toBeNull();
-    // Floating NEW BATTLE button appears (lines 150–155)
     expect(screen.getByText('⟳ NEW BATTLE')).toBeDefined();
   });
 
-  it('floating NEW BATTLE button calls resetGame and hides itself (line 152)', () => {
+  it('floating NEW BATTLE returns to MainMenu and calls resetGame', () => {
     const mockResetGame = jest.fn();
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState: makeGameState({ phase: 'gameover', winner: 'player' }),
       resetGame: mockResetGame,
     }));
-    const { rerender } = render(<App />);
+    const { rerender } = renderInGame();
 
-    // Reveal the board first
     act(() => { lastGameOverProps.onViewBoard?.(); });
     rerender(<App />);
 
-    // Floating button is now visible — click it (line 152)
-    const btn = screen.getByText('⟳ NEW BATTLE');
-    expect(btn).toBeDefined();
-    act(() => { fireEvent.click(btn); });
+    act(() => { fireEvent.click(screen.getByText('⟳ NEW BATTLE')); });
     rerender(<App />);
 
     expect(mockResetGame).toHaveBeenCalled();
-    // After reset, boardRevealed is false so floating button disappears
-    expect(screen.queryByText('⟳ NEW BATTLE')).toBeNull();
+    expect(screen.getByText('MAIN_MENU')).toBeDefined();
   });
 
-  it('GameOver onRestart also resets boardRevealed and calls resetGame (line 144)', () => {
+  it('GameOver onRestart returns to MainMenu and calls resetGame', () => {
     const mockResetGame = jest.fn();
     mockUseGameState.mockReturnValue(defaultHookState({
       gameState: makeGameState({ phase: 'gameover', winner: 'player' }),
       resetGame: mockResetGame,
     }));
-    const { rerender } = render(<App />);
+    const { rerender } = renderInGame();
 
-    // Call onRestart directly from the captured props (line 144)
     act(() => { lastGameOverProps.onRestart?.(); });
     rerender(<App />);
 
     expect(mockResetGame).toHaveBeenCalled();
-    // boardRevealed is reset to false — no floating button
-    expect(screen.queryByText('⟳ NEW BATTLE')).toBeNull();
+    expect(screen.getByText('MAIN_MENU')).toBeDefined();
   });
 });

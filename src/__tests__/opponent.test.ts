@@ -1351,3 +1351,61 @@ describe('AI full game simulation', () => {
     expect(ai.attacked.has('4,2')).toBe(true);
   });
 });
+// ─── handleAxisHit — firstHit backtrack with open neighbours (line 405) ───────
+//
+// Line 405: `if (aiState.firstHit)` inside the `if (newQueue.length === 0)`
+// block in handleAxisHit.
+//
+// The covered paths so far:
+//   • newQueue non-empty → skips the whole block (line 404 = false)
+//   • newQueue empty, firstHit null → line 405 = false (falls to Option 3 / hunt)
+//   • newQueue empty, firstHit set, recovery empty → line 408 = false (Option 3)
+//
+// The uncovered path: newQueue empty, firstHit set, recovery non-empty → line
+// 408 is TRUE → returns the backtrack state (lines 409-419). This happens when
+// the axis extension hits a wall or an already-attacked cell, but firstHit still
+// has unattacked neighbours the AI can pivot to.
+
+describe('handleAxisHit — firstHit backtrack with open neighbours (line 405 true→return)', () => {
+  it('returns target mode seeded from firstHit adjacents when axis extension empties the queue', () => {
+    // Hit [5,5] (firstHit), then [5,6] confirmed horizontal axis.
+    // Now "hit" [5,7]: [5,4] and [5,8] are already attacked, so after
+    // pruning the queue and extending the axis both yield empty.
+    // firstHit [5,5] still has open neighbours [4,5] and [6,5] → backtrack
+    // at line 405 fires and returns the recovery state (lines 409-419).
+    const ai: AIState = {
+      mode:               'target',
+      firstHit:           [5, 5],
+      lastHit:            [5, 6],
+      targetQueue:        [[5, 4], [5, 7]],
+      attacked:           new Set(['5,5', '5,6', '5,4', '5,8']),
+      hitCells:           new Set(['5,5', '5,6']),
+      resolvedHits:       new Set<string>(),
+      config:             { difficulty: 'medium' },
+      remainingShipSizes: [4, 3, 3, 2],
+    };
+
+    // Hit [5,7]:
+    //   prunedQueue: [[5,4],[5,7]] row-filtered → both row 5, then
+    //     !attacked: 5,4 attacked, 5,7 now attacked → []
+    //   axialNext from [5,7] along row: [5,6] attacked, [5,8] attacked → []
+    //   newQueue = [] → if (newQueue.length === 0) true
+    //   aiState.firstHit = [5,5] → line 405 true
+    //   recovery = getAllAdjacentCells([5,5], newAttacked):
+    //     [4,5] free, [6,5] free, [5,4] attacked, [5,6] attacked → [[4,5],[6,5]]
+    //   recovery.length > 0 → line 408 true → returns backtrack state
+    const newAttacked = new Set([...ai.attacked, '5,7']);
+    const result = handleAxisHit(ai, 5, 7, newAttacked);
+
+    expect(result.mode).toBe('target');
+    expect(result.firstHit).toEqual([5, 5]);
+    expect(result.lastHit).toEqual([5, 5]);
+    expect(result.targetQueue.length).toBeGreaterThan(0);
+    result.targetQueue.forEach(([r, c]) => {
+      expect(newAttacked.has(`${r},${c}`)).toBe(false);
+    });
+    const keys = result.targetQueue.map(([r, c]) => `${r},${c}`);
+    expect(keys).toContain('4,5');
+    expect(keys).toContain('6,5');
+  });
+});

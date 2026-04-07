@@ -130,8 +130,8 @@ describe('Full-game integration', () => {
     // Exactly MIN_SHOTS_TO_WIN player shots fired
     expect(hook.result.current.playerShotCount).toBe(MIN_SHOTS_TO_WIN);
 
-    // Score must be 100
-    const score = calcScore(hook.result.current.playerShotCount);
+    // Score must be 100 — 17 shots on easy scores 100 under the new formula
+    const score = calcScore(hook.result.current.playerShotCount, 'easy');
     expect(score).toBe(100);
 
     // Rank must be General of the Armies
@@ -149,8 +149,9 @@ describe('Full-game integration', () => {
 
     const aiCells = getAIShipCells(hook);
 
-    // Find two cells that are guaranteed empty on the opponent board right now.
-    // Inspect the grid directly so the wasted shot is never accidentally a hit.
+    // Find 8 cells guaranteed empty on the opponent board.
+    // SCORING_BASELINE=24: total shots must exceed 24 to score < 100 on Easy.
+    // 8 waste shots + 17 hits = 25 total → calcScore(25,'easy')=96 < 100.
     const grid = hook.result.current.gameState.opponentBoard.grid;
     const wasteCells: [number, number][] = [];
     outer: for (let r = 9; r >= 0; r--) {
@@ -158,12 +159,12 @@ describe('Full-game integration', () => {
         if (grid[r][col] === 'empty' &&
             !aiCells.some(([ar, ac]) => ar === r && ac === col)) {
           wasteCells.push([r, col]);
-          if (wasteCells.length === 2) break outer;
+          if (wasteCells.length === 8) break outer;
         }
       }
     }
 
-    // Fire the two guaranteed-miss shots first
+    // Fire the 8 guaranteed-miss shots first
     for (const [r, col] of wasteCells) {
       if (hook.result.current.gameState.phase !== 'playing') break;
       act(() => { hook.result.current.fireAt(r, col); });
@@ -181,8 +182,8 @@ describe('Full-game integration', () => {
 
     expect(hook.result.current.gameState.phase).toBe('gameover');
     expect(hook.result.current.gameState.winner).toBe('player');
-    // Two wasted shots means playerShotCount > MIN_SHOTS_TO_WIN → score < 100
-    const score = calcScore(hook.result.current.playerShotCount);
+    // 8 wasted shots: playerShotCount = 25 > SCORING_BASELINE (24) → score < 100
+    const score = calcScore(hook.result.current.playerShotCount, 'easy');
     expect(score).toBeLessThan(100);
     expect(hook.result.current.playerShotCount).toBeGreaterThan(MIN_SHOTS_TO_WIN);
   });
@@ -247,6 +248,6 @@ describe('Full-game integration', () => {
 
     expect(hook.result.current.gameState.phase).toBe('gameover');
     expect(hook.result.current.gameState.winner).toBe('player');
-    expect(calcScore(hook.result.current.playerShotCount)).toBe(100);
+    expect(calcScore(hook.result.current.playerShotCount, 'easy')).toBe(100);
   });
 });

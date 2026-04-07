@@ -3,11 +3,21 @@ import { useGameState } from './hooks/useGameState';
 import SetupScreen from './components/SetupScreen';
 import GameScreen from './components/GameScreen';
 import GameOver from './components/GameOver';
-import DifficultySelect from './components/DifficultySelect';
+import MainMenu from './components/Mainmenu';
 import { useSessionStats } from './hooks/useSessionStats';
 import { useEffect, useRef, useState } from 'react';
+import type { Difficulty } from './models/types';
 
 export default function App() {
+  // ── Screen routing ───────────────────────────────────────────────────────
+  // 'menu' — main menu (mode + difficulty selection)
+  // 'game' — full game tree (setup → playing → gameover)
+  //
+  // GamePhase in types.ts is intentionally unchanged — it lives on GameState
+  // (a model layer concern) and has no awareness of the menu. Screen routing
+  // is a pure UI concern managed here in App.
+  const [screen, setScreen] = useState<'menu' | 'game'>('menu');
+
   const {
     gameState,
     setupState,
@@ -50,19 +60,44 @@ export default function App() {
   // the final board state, with a floating NEW BATTLE button to restart.
   const [boardRevealed, setBoardRevealed] = useState(false);
 
-  // Reset boardRevealed when a new game starts.
+  // Reset boardRevealed whenever we return to the game's setup phase.
   useEffect(() => {
     if (phase === 'setup') setBoardRevealed(false);
   }, [phase]);
 
+  // ── Mode selection handlers ──────────────────────────────────────────────
+
+  // Called when the player picks Solo vs AI + a difficulty from the menu.
+  // selectDifficulty feeds the chosen tier into useGameState so beginGame()
+  // and calcScore() both receive the correct value.
+  function handleSoloStart(diff: Difficulty) {
+    selectDifficulty(diff);
+    setScreen('game');
+  }
+
+  // Called from both ⟳ NEW BATTLE buttons (GameOver overlay + floating btn).
+  // Resets all game state AND returns to the main menu so the player picks
+  // a difficulty fresh on every game.
+  function handleRestart() {
+    resetGame();          // clears difficulty → null, resets board + counters
+    setBoardRevealed(false);
+    setScreen('menu');
+  }
+
+  // ── Main menu ────────────────────────────────────────────────────────────
+  if (screen === 'menu') {
+    return (
+      <MainMenu
+        onSoloStart={handleSoloStart}
+        sessionStats={sessionStats}
+      />
+    );
+  }
+
+  // ── Game tree (setup → playing → gameover) ───────────────────────────────
   return (
     <>
       <div className="scanlines" />
-
-      {/* ── Difficulty selection — blocks all interaction until chosen ── */}
-      {difficulty === null && (
-        <DifficultySelect onSelect={selectDifficulty} />
-      )}
 
       {/* ── Battle commencing transition ── */}
       {battleStarting && (
@@ -146,7 +181,7 @@ export default function App() {
           shotCount={shotCount}
           difficulty={difficulty}
           sessionStats={sessionStats}
-          onRestart={resetGame}
+          onRestart={handleRestart}
           onViewBoard={() => setBoardRevealed(true)}
         />
       )}
@@ -155,7 +190,7 @@ export default function App() {
       {phase === 'gameover' && boardRevealed && (
         <button
           className="btn btn--primary floating-new-battle"
-          onClick={() => { setBoardRevealed(false); resetGame(); }}
+          onClick={handleRestart}
         >
           ⟳ NEW BATTLE
         </button>

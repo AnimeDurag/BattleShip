@@ -172,3 +172,37 @@ describe('CombatLog — new-entry flash class', () => {
     expect(allEntries[1]).not.toHaveClass('combat-log__entry--new');
   });
 });
+// ─── CombatLog line 18 false branch — new reference, same top entry ID ────────
+// Line 18: `if (topEntry.id !== prevTopIdRef.current)`.
+//
+// The existing test passes the same array reference on rerender. React's
+// referential equality means the useEffect dependency hasn't changed, so the
+// effect never re-runs and line 18 is never evaluated.
+//
+// To reach the FALSE branch the effect must fire (new array reference passed as
+// the `entries` prop) but find the same top-entry ID it already stored in
+// prevTopIdRef. This simulates a parent re-rendering with a freshly constructed
+// array that still has the same most-recent log entry.
+
+describe('CombatLog — line 18 false branch (new reference, same top entry ID)', () => {
+  it('does not re-apply the flash class when a new array arrives with the same top entry ID', () => {
+    const entry: LogEntry = { id: 42, message: 'HIT', type: 'hit' };
+
+    // First render: effect runs, prevTopIdRef set to 42, flash applied.
+    const { container, rerender } = render(
+      <CombatLog entries={[entry]} aiThinking={false} />
+    );
+    expect(container.querySelector('.combat-log__entry')).toHaveClass(
+      'combat-log__entry--new'
+    );
+
+    // Rerender with a NEW array reference (spread creates a distinct object)
+    // but the same entry ID. The effect fires because the reference changed,
+    // evaluates topEntry.id (42) === prevTopIdRef.current (42) → condition
+    // is FALSE → inner block skipped → no state update, no crash.
+    rerender(<CombatLog entries={[{ ...entry }]} aiThinking={false} />);
+
+    expect(container.querySelectorAll('.combat-log__entry')).toHaveLength(1);
+    expect(container.querySelector('.combat-log__entry')?.textContent).toBe('HIT');
+  });
+});

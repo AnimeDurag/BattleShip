@@ -23,7 +23,7 @@ export default function GameOver({
   onViewBoard,
 }: GameOverProps) {
   const isVictory = winner === 'player';
-  const score     = isVictory ? calcScore(shotCount) : null;
+  const score     = isVictory ? calcScore(shotCount, difficulty ?? 'easy') : null;
   const rank      = score !== null ? getRank(score) : null;
   // Delegate to the pure scoring utility so the logic is independently testable
   function getCommentary(): string {

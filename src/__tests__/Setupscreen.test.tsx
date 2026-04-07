@@ -25,7 +25,7 @@ const emptySetupState: SetupState = {
   orientation:      'horizontal',
 };
 
-function win(shots = 20): GameResult {
+function win(shots = 35): GameResult {
   return { winner: 'player', shotCount: shots, difficulty: 'medium' };
 }
 
@@ -342,5 +342,118 @@ describe('SetupScreen — panel updates when sessionStats prop changes', () => {
     // wins=2, winStreak=2, bestWinStreak=2 all render "2" — scope to the WINS cell
     const winsCell = screen.getByText('WINS').closest('.setup-session__cell') as HTMLElement;
     expect(within(winsCell).getByText('2')).toBeDefined();
+  });
+});
+// ─── Ship selector click → onSelectShip (SetupScreen.tsx line 87) ─────────────
+// Line 87: `onClick={() => onSelectShip(def.name)}` on each ship selector item.
+// Existing tests assert CSS classes but never click the items.
+
+describe('SetupScreen — ship selector click triggers onSelectShip', () => {
+  it('calls onSelectShip with the ship name when a ship item is clicked', () => {
+    const onSelectShip = jest.fn();
+    render(
+      <SetupScreen
+        playerBoard={createBoard()}
+        setupState={{ placedShipNames: [], selectedShipName: null, orientation: 'horizontal' }}
+        allShipsPlaced={false}
+        sessionStats={initialSessionStats()}
+        onSelectShip={onSelectShip}
+        onSetOrientation={() => {}}
+        onCellClick={() => {}}
+        onRandomize={() => {}}
+        onClearBoard={() => {}}
+        onBeginGame={() => {}}
+      />
+    );
+    screen.getByText('Destroyer').click();
+    expect(onSelectShip).toHaveBeenCalledWith('Destroyer');
+  });
+
+  it('calls onSelectShip with the correct name for each ship clicked', () => {
+    const onSelectShip = jest.fn();
+    render(
+      <SetupScreen
+        playerBoard={createBoard()}
+        setupState={{ placedShipNames: [], selectedShipName: null, orientation: 'horizontal' }}
+        allShipsPlaced={false}
+        sessionStats={initialSessionStats()}
+        onSelectShip={onSelectShip}
+        onSetOrientation={() => {}}
+        onCellClick={() => {}}
+        onRandomize={() => {}}
+        onClearBoard={() => {}}
+        onBeginGame={() => {}}
+      />
+    );
+    screen.getByText('Carrier').click();
+    expect(onSelectShip).toHaveBeenCalledWith('Carrier');
+
+    screen.getByText('Battleship').click();
+    expect(onSelectShip).toHaveBeenCalledWith('Battleship');
+  });
+});
+
+// ─── Orientation toggle + control buttons (SetupScreen.tsx lines 109–115) ─────
+// Lines 109–115: HORIZONTAL/VERTICAL call onSetOrientation; RANDOMIZE, CLEAR
+// BOARD, and LAUNCH BATTLE call their respective handlers.
+
+describe('SetupScreen — orientation toggle and control buttons', () => {
+  function renderControls(allShipsPlaced = false) {
+    const handlers = {
+      onSelectShip:     jest.fn(),
+      onSetOrientation: jest.fn(),
+      onCellClick:      jest.fn(),
+      onRandomize:      jest.fn(),
+      onClearBoard:     jest.fn(),
+      onBeginGame:      jest.fn(),
+    };
+    render(
+      <SetupScreen
+        playerBoard={createBoard()}
+        setupState={{ placedShipNames: [], selectedShipName: null, orientation: 'horizontal' }}
+        allShipsPlaced={allShipsPlaced}
+        sessionStats={initialSessionStats()}
+        {...handlers}
+      />
+    );
+    return handlers;
+  }
+
+  it('calls onSetOrientation("vertical") when VERTICAL is clicked', () => {
+    const { onSetOrientation } = renderControls();
+    screen.getByText('VERTICAL').click();
+    expect(onSetOrientation).toHaveBeenCalledWith('vertical');
+  });
+
+  it('calls onSetOrientation("horizontal") when HORIZONTAL is clicked', () => {
+    const { onSetOrientation } = renderControls();
+    screen.getByText('HORIZONTAL').click();
+    expect(onSetOrientation).toHaveBeenCalledWith('horizontal');
+  });
+
+  it('calls onRandomize when ⟳ RANDOMIZE is clicked', () => {
+    const { onRandomize } = renderControls();
+    screen.getByText('⟳ RANDOMIZE').click();
+    expect(onRandomize).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onClearBoard when ✕ CLEAR BOARD is clicked', () => {
+    const { onClearBoard } = renderControls();
+    screen.getByText('✕ CLEAR BOARD').click();
+    expect(onClearBoard).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onBeginGame when ► LAUNCH BATTLE is clicked and all ships are placed', () => {
+    const { onBeginGame } = renderControls(true);
+    screen.getByText('► LAUNCH BATTLE').click();
+    expect(onBeginGame).toHaveBeenCalledTimes(1);
+  });
+
+  it('► LAUNCH BATTLE is disabled and does not fire when ships are not yet placed', () => {
+    const { onBeginGame } = renderControls(false);
+    const btn = screen.getByText('► LAUNCH BATTLE') as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    btn.click();
+    expect(onBeginGame).not.toHaveBeenCalled();
   });
 });
