@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import type { Difficulty } from '../models/types';
-import { winRate, avgShots } from '../hooks/useSessionStats';
-import type { SessionStats } from '../hooks/useSessionStats';
+import { winRate, avgShots, p1WinRate, p2WinRate, p1AvgShots, p2AvgShots, p1Accuracy, p2Accuracy } from '../hooks/useSessionStats';
+import type { SessionStats, PvPSessionStats } from '../hooks/useSessionStats';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface MainMenuProps {
   onSoloStart:  (difficulty: Difficulty) => void;
-  sessionStats: SessionStats;
+  onPvPStart:   () => void;
+  soloStats:    SessionStats;
+  pvpStats:     PvPSessionStats;
 }
 
 // ─── Difficulty tier metadata ─────────────────────────────────────────────────
@@ -27,10 +29,12 @@ const DIFFICULTIES: {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function MainMenu({ onSoloStart, sessionStats }: MainMenuProps) {
+export default function MainMenu({ onSoloStart, onPvPStart, soloStats, pvpStats }: MainMenuProps) {
   const [soloExpanded, setSoloExpanded] = useState(false);
-  const wr    = winRate(sessionStats);
-  const shots = avgShots(sessionStats);
+  const wr    = winRate(soloStats);
+  const shots = avgShots(soloStats);
+
+  const showStats = soloStats.gamesPlayed > 0 || pvpStats.gamesPlayed > 0;
 
   return (
     <div className="main-menu">
@@ -85,15 +89,21 @@ export default function MainMenu({ onSoloStart, sessionStats }: MainMenuProps) {
               </div>
             </div>
 
-            {/* ── Disabled modes ── */}
-            <div className="main-menu__mode-block main-menu__mode-block--disabled" aria-disabled="true">
+            {/* ── Local PvP — active ── */}
+            <div className="main-menu__mode-block">
               <div className="main-menu__mode-header">
-                <div className="main-menu__mode-name">LOCAL PVP</div>
+                <div className="main-menu__mode-name main-menu__mode-name--active">LOCAL PVP</div>
                 <p className="main-menu__mode-desc">Two players, one device. Hot-seat battle.</p>
               </div>
-              <div className="main-menu__coming-soon">COMING SOON</div>
+              <button
+                className="btn btn--primary"
+                onClick={onPvPStart}
+              >
+                START LOCAL PvP
+              </button>
             </div>
 
+            {/* ── Online — disabled ── */}
             <div className="main-menu__mode-block main-menu__mode-block--disabled" aria-disabled="true">
               <div className="main-menu__mode-header">
                 <div className="main-menu__mode-name">ONLINE</div>
@@ -105,37 +115,97 @@ export default function MainMenu({ onSoloStart, sessionStats }: MainMenuProps) {
           </div>
         </div>
 
-        {/* ── Session stats — only after at least one game ── */}
-        {sessionStats.gamesPlayed > 0 && (
+        {/* ── Session stats — three sections ── */}
+        {showStats && (
           <div className="main-menu__stats">
             <div className="main-menu__stats-title">SESSION RECORD</div>
-            <div className="main-menu__stats-grid">
-              <div className="main-menu__stats-cell">
-                <div className="main-menu__stats-val main-menu__stats-val--win">{sessionStats.wins}</div>
-                <div className="main-menu__stats-key">WINS</div>
-              </div>
-              <div className="main-menu__stats-cell">
-                <div className="main-menu__stats-val main-menu__stats-val--loss">{sessionStats.losses}</div>
-                <div className="main-menu__stats-key">LOSSES</div>
-              </div>
-              <div className="main-menu__stats-cell">
-                <div className="main-menu__stats-val">{wr !== null ? `${wr}%` : '—'}</div>
-                <div className="main-menu__stats-key">WIN RATE</div>
-              </div>
-              <div className="main-menu__stats-cell">
-                <div className="main-menu__stats-val main-menu__stats-val--best">
-                  {sessionStats.bestScore !== null ? `${sessionStats.bestScore}%` : '—'}
+            <div className="main-menu__session-columns">
+
+              {/* ── Solo vs AI section ── */}
+              {soloStats.gamesPlayed > 0 && (
+                <div className="main-menu__session-section">
+                  <div className="main-menu__session-section-title">SOLO VS AI</div>
+                  <div className="main-menu__stats-grid">
+                    <div className="main-menu__stats-cell">
+                      <div className="main-menu__stats-val main-menu__stats-val--win">{soloStats.wins}</div>
+                      <div className="main-menu__stats-key">WINS</div>
+                    </div>
+                    <div className="main-menu__stats-cell">
+                      <div className="main-menu__stats-val main-menu__stats-val--loss">{soloStats.losses}</div>
+                      <div className="main-menu__stats-key">LOSSES</div>
+                    </div>
+                    <div className="main-menu__stats-cell">
+                      <div className="main-menu__stats-val">{wr !== null ? `${wr}%` : '—'}</div>
+                      <div className="main-menu__stats-key">WIN RATE</div>
+                    </div>
+                    <div className="main-menu__stats-cell">
+                      <div className="main-menu__stats-val main-menu__stats-val--best">
+                        {soloStats.bestScore !== null ? `${soloStats.bestScore}%` : '—'}
+                      </div>
+                      <div className="main-menu__stats-key">BEST SCORE</div>
+                    </div>
+                    <div className="main-menu__stats-cell">
+                      <div className="main-menu__stats-val">{shots !== null ? shots : '—'}</div>
+                      <div className="main-menu__stats-key">AVG SHOTS</div>
+                    </div>
+                    <div className="main-menu__stats-cell">
+                      <div className="main-menu__stats-val main-menu__stats-val--streak">{soloStats.winStreak}</div>
+                      <div className="main-menu__stats-key">STREAK</div>
+                    </div>
+                  </div>
                 </div>
-                <div className="main-menu__stats-key">BEST SCORE</div>
-              </div>
-              <div className="main-menu__stats-cell">
-                <div className="main-menu__stats-val">{shots !== null ? shots : '—'}</div>
-                <div className="main-menu__stats-key">AVG SHOTS</div>
-              </div>
-              <div className="main-menu__stats-cell">
-                <div className="main-menu__stats-val main-menu__stats-val--streak">{sessionStats.winStreak}</div>
-                <div className="main-menu__stats-key">STREAK</div>
-              </div>
+              )}
+
+              {/* ── Player 1 section ── */}
+              {pvpStats.gamesPlayed > 0 && (
+                <div className="main-menu__session-section">
+                  <div className="main-menu__session-section-title">PLAYER 1</div>
+                  <div className="main-menu__stats-grid">
+                    <div className="main-menu__stats-cell">
+                      <div className="main-menu__stats-val main-menu__stats-val--win">{pvpStats.p1Wins}</div>
+                      <div className="main-menu__stats-key">WINS</div>
+                    </div>
+                    <div className="main-menu__stats-cell">
+                      <div className="main-menu__stats-val">{p1WinRate(pvpStats) !== null ? `${p1WinRate(pvpStats)}%` : '—'}</div>
+                      <div className="main-menu__stats-key">WIN RATE</div>
+                    </div>
+                    <div className="main-menu__stats-cell">
+                      <div className="main-menu__stats-val">{p1AvgShots(pvpStats) !== null ? p1AvgShots(pvpStats) : '—'}</div>
+                      <div className="main-menu__stats-key">AVG SHOTS</div>
+                    </div>
+                    <div className="main-menu__stats-cell">
+                      <div className="main-menu__stats-val">{p1Accuracy(pvpStats) !== null ? `${p1Accuracy(pvpStats)}%` : '—'}</div>
+                      <div className="main-menu__stats-key">ACCURACY</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Player 2 section ── */}
+              {pvpStats.gamesPlayed > 0 && (
+                <div className="main-menu__session-section">
+                  <div className="main-menu__session-section-title">PLAYER 2</div>
+                  <div className="main-menu__stats-grid">
+                    <div className="main-menu__stats-cell">
+                      <div className="main-menu__stats-val main-menu__stats-val--win">{pvpStats.p2Wins}</div>
+                      <div className="main-menu__stats-key">WINS</div>
+                    </div>
+                    <div className="main-menu__stats-cell">
+                      <div className="main-menu__stats-val">{p2WinRate(pvpStats) !== null ? `${p2WinRate(pvpStats)}%` : '—'}</div>
+                      <div className="main-menu__stats-key">WIN RATE</div>
+                    </div>
+                    <div className="main-menu__stats-cell">
+                      <div className="main-menu__stats-val">{p2AvgShots(pvpStats) !== null ? p2AvgShots(pvpStats) : '—'}</div>
+                      <div className="main-menu__stats-key">AVG SHOTS</div>
+                    </div>
+                    <div className="main-menu__stats-cell">
+                      <div className="main-menu__stats-val">{p2Accuracy(pvpStats) !== null ? `${p2Accuracy(pvpStats)}%` : '—'}</div>
+                      <div className="main-menu__stats-key">ACCURACY</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         )}

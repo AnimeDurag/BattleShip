@@ -18,6 +18,7 @@ interface SetupScreenProps {
   onClearBoard: () => void;
   onBeginGame: () => void;
   difficultyChosen?: boolean;   // disables keyboard nav on board when overlay is up
+  playerLabel?: string;         // e.g. 'PLAYER 1' or 'PLAYER 2' — shown in panel title
 }
 
 export default function SetupScreen({
@@ -32,6 +33,7 @@ export default function SetupScreen({
   onClearBoard,
   onBeginGame,
   difficultyChosen = true,
+  playerLabel,
 }: SetupScreenProps) {
   const { placedShipNames, selectedShipName, orientation } = setupState;
   const selectedDef = FLEET.find(f => f.name === selectedShipName);
@@ -42,7 +44,7 @@ export default function SetupScreen({
     <div className="setup-screen">
       {/* ── Board ── */}
       <div className="setup-screen__board-col">
-        <div className="board-label">DEPLOY YOUR FLEET</div>
+        <div className="board-label">{playerLabel ? `DEPLOY YOUR FLEET — ${playerLabel}` : 'DEPLOY YOUR FLEET'}</div>
 
         <BoardGrid
           board={playerBoard}

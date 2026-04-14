@@ -75,18 +75,107 @@ export function avgShots(stats: SessionStats): number | null {
     : Math.round(stats.totalShots / stats.gamesPlayed);
 }
 
+// ─── PvP stats types ──────────────────────────────────────────────────────────
+
+export interface PvPGameResult {
+  winner:    1 | 2;
+  p1Shots:   number;
+  p2Shots:   number;
+  p1Hits:    number;
+  p2Hits:    number;
+}
+
+export interface PvPSessionStats {
+  gamesPlayed:   number;
+  p1Wins:        number;
+  p2Wins:        number;
+  p1TotalShots:  number;
+  p2TotalShots:  number;
+  p1TotalHits:   number;
+  p2TotalHits:   number;
+}
+
+export function initialPvPSessionStats(): PvPSessionStats {
+  return {
+    gamesPlayed:  0,
+    p1Wins:       0,
+    p2Wins:       0,
+    p1TotalShots: 0,
+    p2TotalShots: 0,
+    p1TotalHits:  0,
+    p2TotalHits:  0,
+  };
+}
+
+export function applyPvPResult(
+  stats: PvPSessionStats,
+  result: PvPGameResult
+): PvPSessionStats {
+  return {
+    gamesPlayed:   stats.gamesPlayed   + 1,
+    p1Wins:        stats.p1Wins        + (result.winner === 1 ? 1 : 0),
+    p2Wins:        stats.p2Wins        + (result.winner === 2 ? 1 : 0),
+    p1TotalShots:  stats.p1TotalShots  + result.p1Shots,
+    p2TotalShots:  stats.p2TotalShots  + result.p2Shots,
+    p1TotalHits:   stats.p1TotalHits   + result.p1Hits,
+    p2TotalHits:   stats.p2TotalHits   + result.p2Hits,
+  };
+}
+
+export function p1WinRate(stats: PvPSessionStats): number | null {
+  return stats.gamesPlayed === 0
+    ? null
+    : Math.round((stats.p1Wins / stats.gamesPlayed) * 100);
+}
+
+export function p2WinRate(stats: PvPSessionStats): number | null {
+  return stats.gamesPlayed === 0
+    ? null
+    : Math.round((stats.p2Wins / stats.gamesPlayed) * 100);
+}
+
+export function p1AvgShots(stats: PvPSessionStats): number | null {
+  return stats.gamesPlayed === 0
+    ? null
+    : Math.round(stats.p1TotalShots / stats.gamesPlayed);
+}
+
+export function p2AvgShots(stats: PvPSessionStats): number | null {
+  return stats.gamesPlayed === 0
+    ? null
+    : Math.round(stats.p2TotalShots / stats.gamesPlayed);
+}
+
+export function p1Accuracy(stats: PvPSessionStats): number | null {
+  return stats.p1TotalShots === 0
+    ? null
+    : Math.round((stats.p1TotalHits / stats.p1TotalShots) * 100);
+}
+
+export function p2Accuracy(stats: PvPSessionStats): number | null {
+  return stats.p2TotalShots === 0
+    ? null
+    : Math.round((stats.p2TotalHits / stats.p2TotalShots) * 100);
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useSessionStats() {
-  const [stats, setStats] = useState<SessionStats>(initialSessionStats);
+  const [stats,    setStats]    = useState<SessionStats>(initialSessionStats);
+  const [pvpStats, setPvpStats] = useState<PvPSessionStats>(initialPvPSessionStats);
 
   const recordResult = useCallback((result: GameResult) => {
     setStats(prev => applyResult(prev, result));
   }, []);
 
-  const resetStats = useCallback(() => {
-    setStats(initialSessionStats());
+  const recordPvPResult = useCallback((result: PvPGameResult) => {
+    setPvpStats(prev => applyPvPResult(prev, result));
   }, []);
 
-  return { stats, recordResult, resetStats };
+  const resetStats = useCallback(() => {
+    setStats(initialSessionStats());
+    setPvpStats(initialPvPSessionStats());
+  }, []);
+
+  return { stats, pvpStats, recordResult, recordPvPResult, resetStats };
 }

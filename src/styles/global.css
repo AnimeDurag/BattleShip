@@ -623,6 +623,41 @@ body {
 
 .gameover-panel__btn { margin-top: 24px; }
 
+.gameover-panel__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--dim);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.14s;
+}
+
+.gameover-panel__close:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+/* Floating restart button shown during board-review mode */
+.floating-new-battle {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  width: auto;
+  padding: 10px 32px;
+  white-space: nowrap;
+}
+
 /* ─── Performance bar ──────────────────────────────────────────────────────── */
 
 .gameover-perf {
@@ -1389,4 +1424,71 @@ body {
   color: var(--dim);
   text-transform: uppercase;
   text-align: center;
+}
+
+/* ── PvP handoff screen ── */
+.pvp-handoff {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--navy);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.pvp-handoff__message { font-size: 2rem; font-family: var(--display); color: var(--bright); text-align: center; }
+.pvp-handoff__sub     { font-size: 1rem; color: var(--text); text-align: center; }
+.pvp-handoff__prompt  { font-size: 0.8rem; color: var(--dim); letter-spacing: 0.15em; animation: blink 1.2s step-end infinite; }
+
+/* ── Main menu 3-column stats ── */
+.main-menu__session-columns  { display: flex; gap: 2rem; flex-wrap: wrap; justify-content: center; }
+.main-menu__session-section  { flex: 1; min-width: 180px; }
+.main-menu__session-section-title { font-size: 0.7rem; letter-spacing: 0.15em; color: var(--dim); margin-bottom: 0.5rem; }
+
+/* ── PvP battle review — two boards side by side ── */
+.pvp-review {
+  width: 100%;
+  max-width: 1140px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.pvp-review__col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── PvP game over results table ── */
+.pvp-results-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.pvp-results-table th,
+.pvp-results-table td {
+  padding: 0.4rem 1rem;
+  text-align: center;
+  border: 1px solid var(--border);
+  color: var(--text);
+  letter-spacing: 0.08em;
+}
+
+.pvp-results-table th {
+  color: var(--amber);
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+}
+
+.pvp-results-table td:first-child {
+  text-align: left;
+  color: var(--dim);
 }

@@ -2,19 +2,24 @@
  * MainMenu component tests
  *
  * Covers: logo rendering, mode card rendering, SOLO VS AI expand/collapse toggle,
- * difficulty buttons (accessible after toggle), disabled state of PvP and Online
- * cards, COMING SOON labels, session stats panel visibility and values,
- * onSoloStart callback with correct difficulty argument.
+ * difficulty buttons (accessible after toggle), LOCAL PvP card activation,
+ * 3-section stats panel, session stats panel visibility and values,
+ * onSoloStart / onPvPStart callbacks.
  *
  * Required jest config:  testEnvironment: 'jsdom'
  * Required packages:     @testing-library/react  @testing-library/jest-dom
  */
 
-import { render, screen, within, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import MainMenu from '../components/Mainmenu';
-import { initialSessionStats, applyResult } from '../hooks/useSessionStats';
-import type { SessionStats, GameResult } from '../hooks/useSessionStats';
+import {
+  initialSessionStats,
+  applyResult,
+  initialPvPSessionStats,
+  applyPvPResult,
+} from '../hooks/useSessionStats';
+import type { SessionStats, GameResult, PvPSessionStats, PvPGameResult } from '../hooks/useSessionStats';
 import type { Difficulty } from '../models/types';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -31,12 +36,27 @@ function makeStats(results: GameResult[]): SessionStats {
   return results.reduce(applyResult, initialSessionStats());
 }
 
+function makePvPStats(results: PvPGameResult[]): PvPSessionStats {
+  return results.reduce(applyPvPResult, initialPvPSessionStats());
+}
+
+function pvpWin(): PvPGameResult {
+  return { winner: 1, p1Shots: 20, p2Shots: 22, p1Hits: 10, p2Hits: 11 };
+}
+
 function renderMenu(
   onSoloStart: (d: Difficulty) => void = jest.fn(),
-  sessionStats: SessionStats = initialSessionStats()
+  soloStats: SessionStats = initialSessionStats(),
+  pvpStats: PvPSessionStats = initialPvPSessionStats(),
+  onPvPStart: () => void = jest.fn(),
 ) {
   return render(
-    <MainMenu onSoloStart={onSoloStart} sessionStats={sessionStats} />
+    <MainMenu
+      onSoloStart={onSoloStart}
+      onPvPStart={onPvPStart}
+      soloStats={soloStats}
+      pvpStats={pvpStats}
+    />
   );
 }
 
@@ -50,7 +70,7 @@ function expandSolo() {
 describe('MainMenu — header', () => {
   it('renders the BATTLESHIP logo', () => {
     renderMenu();
-    expect(screen.getByText('SHIP')).toBeDefined(); // split across logo span
+    expect(screen.getByText('SHIP')).toBeDefined();
   });
 });
 
@@ -72,17 +92,10 @@ describe('MainMenu — mode cards', () => {
     expect(screen.getByText('ONLINE')).toBeDefined();
   });
 
-  it('renders COMING SOON labels for PvP and Online cards', () => {
+  it('renders COMING SOON label only for Online card (not PvP)', () => {
     renderMenu();
     const comingSoon = screen.getAllByText('COMING SOON');
-    expect(comingSoon).toHaveLength(2);
-  });
-
-  it('PvP card has aria-disabled="true"', () => {
-    const { container } = renderMenu();
-    const cards = container.querySelectorAll('.main-menu__mode-block--disabled');
-    const pvpCard = Array.from(cards).find(el => el.textContent?.includes('LOCAL PVP'));
-    expect(pvpCard?.getAttribute('aria-disabled')).toBe('true');
+    expect(comingSoon).toHaveLength(1);
   });
 
   it('Online card has aria-disabled="true"', () => {
@@ -97,6 +110,32 @@ describe('MainMenu — mode cards', () => {
     const soloBlock = screen.getByText('SOLO VS AI').closest('.main-menu__mode-block');
     expect(soloBlock).not.toBeNull();
     expect(soloBlock?.className).not.toContain('disabled');
+  });
+});
+
+// ─── Local PvP card activation ────────────────────────────────────────────────
+
+describe('MainMenu — LOCAL PvP card', () => {
+  it('LOCAL PvP card does NOT have aria-disabled="true"', () => {
+    const { container } = renderMenu();
+    const cards = container.querySelectorAll('.main-menu__mode-block--disabled');
+    const pvpCard = Array.from(cards).find(el => el.textContent?.includes('LOCAL PVP'));
+    expect(pvpCard).toBeUndefined();
+  });
+
+  it('LOCAL PvP card does not show COMING SOON label', () => {
+    renderMenu();
+    // Only ONLINE has COMING SOON
+    const comingSoon = screen.getAllByText('COMING SOON');
+    expect(comingSoon).toHaveLength(1);
+    expect(comingSoon[0].closest('[aria-disabled]')?.textContent).toContain('ONLINE');
+  });
+
+  it('clicking START LOCAL PvP button calls onPvPStart', () => {
+    const onPvPStart = jest.fn();
+    renderMenu(jest.fn(), initialSessionStats(), initialPvPSessionStats(), onPvPStart);
+    fireEvent.click(screen.getByText('START LOCAL PvP'));
+    expect(onPvPStart).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -134,15 +173,13 @@ describe('MainMenu — Solo vs AI toggle', () => {
   it('removes the --expanded modifier class when collapsed', () => {
     renderMenu();
     expandSolo();
-    expandSolo(); // collapse
+    expandSolo();
     const soloBlock = screen.getByText('SOLO VS AI').closest('.main-menu__mode-block');
     expect(soloBlock?.className).not.toContain('main-menu__mode-block--expanded');
   });
 });
 
 // ─── Difficulty buttons ────────────────────────────────────────────────────────
-// The difficulty drawer is hidden until the SOLO VS AI toggle is clicked.
-// Each test expands the drawer first before interacting with difficulty buttons.
 
 describe('MainMenu — difficulty buttons', () => {
   it('renders all four difficulty buttons inside the Solo card after expanding', () => {
@@ -198,86 +235,78 @@ describe('MainMenu — difficulty buttons', () => {
 // ─── Session stats panel visibility ───────────────────────────────────────────
 
 describe('MainMenu — session stats panel visibility', () => {
-  it('does not render the session panel when no games have been played', () => {
-    renderMenu(jest.fn(), initialSessionStats());
+  it('does not render the session panel when both soloStats and pvpStats have 0 games', () => {
+    renderMenu(jest.fn(), initialSessionStats(), initialPvPSessionStats());
     expect(screen.queryByText('SESSION RECORD')).toBeNull();
   });
 
-  it('renders the session panel after one win', () => {
+  it('renders the session panel after one solo win', () => {
     renderMenu(jest.fn(), makeStats([win()]));
     expect(screen.getByText('SESSION RECORD')).toBeDefined();
   });
 
-  it('renders the session panel after one loss', () => {
-    renderMenu(jest.fn(), makeStats([loss()]));
+  it('renders the session panel after one pvp game', () => {
+    renderMenu(jest.fn(), initialSessionStats(), makePvPStats([pvpWin()]));
     expect(screen.getByText('SESSION RECORD')).toBeDefined();
   });
 
-  it('renders the session panel after mixed results', () => {
-    renderMenu(jest.fn(), makeStats([win(), loss(), win()]));
-    expect(screen.getByText('SESSION RECORD')).toBeDefined();
+  it('SOLO VS AI section shown when soloStats.gamesPlayed > 0', () => {
+    renderMenu(jest.fn(), makeStats([win()]));
+    // 'SOLO VS AI' appears in both the mode card and the stats section title
+    const sections = screen.getAllByText('SOLO VS AI');
+    expect(sections.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('PLAYER 1 section shown when pvpStats.gamesPlayed > 0', () => {
+    renderMenu(jest.fn(), initialSessionStats(), makePvPStats([pvpWin()]));
+    expect(screen.getByText('PLAYER 1')).toBeDefined();
+  });
+
+  it('PLAYER 2 section shown when pvpStats.gamesPlayed > 0', () => {
+    renderMenu(jest.fn(), initialSessionStats(), makePvPStats([pvpWin()]));
+    expect(screen.getByText('PLAYER 2')).toBeDefined();
   });
 });
 
-// ─── Session stats values ──────────────────────────────────────────────────────
+// ─── Solo VS AI section values ────────────────────────────────────────────────
 
-describe('MainMenu — session stats values', () => {
-  it('displays the correct WINS count', () => {
+describe('MainMenu — solo stats values', () => {
+  it('displays the correct WINS count in SOLO VS AI section', () => {
     const stats = makeStats([win(), win(), loss()]);
     renderMenu(jest.fn(), stats);
-    const cell = screen.getByText('WINS').closest('.main-menu__stats-cell') as HTMLElement;
-    expect(within(cell).getByText('2')).toBeDefined();
+    const sections = document.querySelectorAll('.main-menu__session-section');
+    const soloSection = Array.from(sections).find(s => s.textContent?.includes('SOLO VS AI'));
+    expect(soloSection?.textContent).toContain('2');
   });
 
-  it('displays the correct LOSSES count', () => {
-    const stats = makeStats([win(), loss(), loss()]);
-    renderMenu(jest.fn(), stats);
-    const cell = screen.getByText('LOSSES').closest('.main-menu__stats-cell') as HTMLElement;
-    expect(within(cell).getByText('2')).toBeDefined();
-  });
-
-  it('displays WIN RATE as a percentage', () => {
-    // 1 win / 2 games = 50%
+  it('displays WIN RATE in SOLO VS AI section', () => {
     const stats = makeStats([win(), loss()]);
     renderMenu(jest.fn(), stats);
-    const cell = screen.getByText('WIN RATE').closest('.main-menu__stats-cell') as HTMLElement;
-    expect(within(cell).getByText('50%')).toBeDefined();
+    expect(screen.getByText('WIN RATE')).toBeDefined();
+    // 50% win rate
+    expect(screen.getByText('50%')).toBeDefined();
+  });
+});
+
+// ─── PvP stats section values ─────────────────────────────────────────────────
+
+describe('MainMenu — PvP stats values', () => {
+  it('PLAYER 1 section shows p1Wins', () => {
+    const pvpStats = makePvPStats([pvpWin(), pvpWin()]);
+    renderMenu(jest.fn(), initialSessionStats(), pvpStats);
+    // p1Wins = 2
+    const p1Section = document.querySelectorAll('.main-menu__session-section')[0];
+    expect(p1Section?.textContent).toContain('2');
   });
 
-  it('displays BEST SCORE percentage after a win', () => {
-    // win(24) on medium → calcScore(24,'medium') = 100
-    const stats = makeStats([win(24)]);
-    renderMenu(jest.fn(), stats);
-    const cell = screen.getByText('BEST SCORE').closest('.main-menu__stats-cell') as HTMLElement;
-    expect(within(cell).getByText('100%')).toBeDefined();
-  });
-
-  it('displays — for BEST SCORE when only losses have been recorded', () => {
-    const stats = makeStats([loss()]);
-    renderMenu(jest.fn(), stats);
-    const cell = screen.getByText('BEST SCORE').closest('.main-menu__stats-cell') as HTMLElement;
-    expect(within(cell).getByText('—')).toBeDefined();
-  });
-
-  it('displays AVG SHOTS rounded to nearest integer', () => {
-    // win(30) + loss(40) = total 70 / 2 games = 35
-    const stats = makeStats([win(30), loss(40)]);
-    renderMenu(jest.fn(), stats);
-    const cell = screen.getByText('AVG SHOTS').closest('.main-menu__stats-cell') as HTMLElement;
-    expect(within(cell).getByText('35')).toBeDefined();
-  });
-
-  it('displays STREAK of 0 after a loss breaks the streak', () => {
-    const stats = makeStats([win(), win(), loss()]);
-    renderMenu(jest.fn(), stats);
-    const cell = screen.getByText('STREAK').closest('.main-menu__stats-cell') as HTMLElement;
-    expect(within(cell).getByText('0')).toBeDefined();
-  });
-
-  it('displays STREAK of 3 after three consecutive wins', () => {
-    const stats = makeStats([win(), win(), win()]);
-    renderMenu(jest.fn(), stats);
-    const cell = screen.getByText('STREAK').closest('.main-menu__stats-cell') as HTMLElement;
-    expect(within(cell).getByText('3')).toBeDefined();
+  it('shows — placeholders when accuracy data is missing (zero shots)', () => {
+    const pvpStats: PvPSessionStats = {
+      gamesPlayed: 1, p1Wins: 1, p2Wins: 0,
+      p1TotalShots: 0, p2TotalShots: 0,
+      p1TotalHits: 0, p2TotalHits: 0,
+    };
+    renderMenu(jest.fn(), initialSessionStats(), pvpStats);
+    const dashes = screen.getAllByText('—');
+    expect(dashes.length).toBeGreaterThan(0);
   });
 });

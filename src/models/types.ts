@@ -3,6 +3,15 @@ export type Orientation = 'horizontal' | 'vertical';
 export type GamePhase   = 'setup' | 'playing' | 'gameover';
 export type AttackResult = 'hit' | 'miss' | 'sunk' | 'already-attacked';
 
+export type PvPPhase =
+  | 'setup-p1'              // P1 is placing their fleet
+  | 'handoff-to-p2-setup'   // blocking screen → P2 will set up next
+  | 'setup-p2'              // P2 is placing their fleet
+  | 'handoff-to-battle'     // blocking screen announcing who goes first
+  | 'playing'               // active combat; currentPlayer says whose turn
+  | 'handoff-between-turns' // blocking screen between combatant turns
+  | 'gameover';             // game ended
+
 // The four difficulty tiers available to the player.
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'sweaty';
 

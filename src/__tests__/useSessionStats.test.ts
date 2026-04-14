@@ -13,8 +13,16 @@ import {
   winRate,
   avgShots,
   useSessionStats,
+  initialPvPSessionStats,
+  applyPvPResult,
+  p1WinRate,
+  p2WinRate,
+  p1Accuracy,
+  p2Accuracy,
+  p1AvgShots,
+  p2AvgShots,
 } from '../hooks/useSessionStats';
-import type { SessionStats, GameResult } from '../hooks/useSessionStats';
+import type { SessionStats, GameResult, PvPSessionStats, PvPGameResult } from '../hooks/useSessionStats';
 import { MIN_SHOTS_TO_WIN, calcScore } from '../utils/scoring';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -343,6 +351,135 @@ describe('useSessionStats hook', () => {
     const fn1 = result.current.resetStats;
     rerender();
     expect(result.current.resetStats).toBe(fn1);
+  });
+});
+
+// ─── PvP stats ────────────────────────────────────────────────────────────────
+
+function pvpWin(): PvPGameResult {
+  return { winner: 1, p1Shots: 20, p2Shots: 22, p1Hits: 10, p2Hits: 11 };
+}
+
+function pvpP2Win(): PvPGameResult {
+  return { winner: 2, p1Shots: 18, p2Shots: 15, p1Hits: 8, p2Hits: 12 };
+}
+
+describe('applyPvPResult', () => {
+  it('increments gamesPlayed', () => {
+    const next = applyPvPResult(initialPvPSessionStats(), pvpWin());
+    expect(next.gamesPlayed).toBe(1);
+  });
+
+  it('increments p1Wins when winner is 1', () => {
+    const next = applyPvPResult(initialPvPSessionStats(), pvpWin());
+    expect(next.p1Wins).toBe(1);
+    expect(next.p2Wins).toBe(0);
+  });
+
+  it('increments p2Wins when winner is 2', () => {
+    const next = applyPvPResult(initialPvPSessionStats(), pvpP2Win());
+    expect(next.p2Wins).toBe(1);
+    expect(next.p1Wins).toBe(0);
+  });
+
+  it('accumulates p1TotalShots and p2TotalShots', () => {
+    let s = initialPvPSessionStats();
+    s = applyPvPResult(s, pvpWin());
+    s = applyPvPResult(s, pvpP2Win());
+    expect(s.p1TotalShots).toBe(pvpWin().p1Shots + pvpP2Win().p1Shots);
+    expect(s.p2TotalShots).toBe(pvpWin().p2Shots + pvpP2Win().p2Shots);
+  });
+
+  it('accumulates p1TotalHits and p2TotalHits', () => {
+    let s = initialPvPSessionStats();
+    s = applyPvPResult(s, pvpWin());
+    s = applyPvPResult(s, pvpP2Win());
+    expect(s.p1TotalHits).toBe(pvpWin().p1Hits + pvpP2Win().p1Hits);
+    expect(s.p2TotalHits).toBe(pvpWin().p2Hits + pvpP2Win().p2Hits);
+  });
+
+  it('does not mutate the input stats object', () => {
+    const original = initialPvPSessionStats();
+    applyPvPResult(original, pvpWin());
+    expect(original.gamesPlayed).toBe(0);
+  });
+});
+
+describe('PvP derived helpers', () => {
+  it('p1WinRate returns null when gamesPlayed is 0', () => {
+    expect(p1WinRate(initialPvPSessionStats())).toBeNull();
+  });
+
+  it('p1WinRate returns 100 when p1Wins equals gamesPlayed', () => {
+    const s = applyPvPResult(initialPvPSessionStats(), pvpWin());
+    expect(p1WinRate(s)).toBe(100);
+  });
+
+  it('p2WinRate returns null when gamesPlayed is 0', () => {
+    expect(p2WinRate(initialPvPSessionStats())).toBeNull();
+  });
+
+  it('p2WinRate returns 100 when p2Wins equals gamesPlayed', () => {
+    const s = applyPvPResult(initialPvPSessionStats(), pvpP2Win());
+    expect(p2WinRate(s)).toBe(100);
+  });
+
+  it('p1Accuracy returns null when p1TotalShots is 0', () => {
+    expect(p1Accuracy(initialPvPSessionStats())).toBeNull();
+  });
+
+  it('p1Accuracy returns correct percentage', () => {
+    // 10 hits / 20 shots = 50%
+    const s = applyPvPResult(initialPvPSessionStats(), { winner: 1, p1Shots: 20, p2Shots: 0, p1Hits: 10, p2Hits: 0 });
+    expect(p1Accuracy(s)).toBe(50);
+  });
+
+  it('p2Accuracy returns null when p2TotalShots is 0', () => {
+    expect(p2Accuracy(initialPvPSessionStats())).toBeNull();
+  });
+
+  it('p2Accuracy returns correct percentage', () => {
+    const s = applyPvPResult(initialPvPSessionStats(), { winner: 2, p1Shots: 0, p2Shots: 15, p1Hits: 0, p2Hits: 12 });
+    expect(p2Accuracy(s)).toBe(80);
+  });
+
+  it('p1AvgShots returns null when gamesPlayed is 0', () => {
+    expect(p1AvgShots(initialPvPSessionStats())).toBeNull();
+  });
+
+  it('p1AvgShots rounds correctly', () => {
+    let s = initialPvPSessionStats();
+    s = applyPvPResult(s, { winner: 1, p1Shots: 20, p2Shots: 0, p1Hits: 0, p2Hits: 0 });
+    s = applyPvPResult(s, { winner: 1, p1Shots: 21, p2Shots: 0, p1Hits: 0, p2Hits: 0 });
+    // (20+21)/2 = 20.5 → rounds to 21 (Math.round)
+    expect(p1AvgShots(s)).toBe(21);
+  });
+
+  it('p2AvgShots returns null when gamesPlayed is 0', () => {
+    expect(p2AvgShots(initialPvPSessionStats())).toBeNull();
+  });
+});
+
+describe('useSessionStats hook — PvP fields', () => {
+  it('pvpStats starts as initialPvPSessionStats', () => {
+    const { result } = renderHook(() => useSessionStats());
+    expect(result.current.pvpStats).toEqual(initialPvPSessionStats());
+  });
+
+  it('recordPvPResult increments pvpStats correctly', () => {
+    const { result } = renderHook(() => useSessionStats());
+    act(() => { result.current.recordPvPResult(pvpWin()); });
+    expect(result.current.pvpStats.gamesPlayed).toBe(1);
+    expect(result.current.pvpStats.p1Wins).toBe(1);
+  });
+
+  it('resetStats zeroes both stats and pvpStats', () => {
+    const { result } = renderHook(() => useSessionStats());
+    act(() => { result.current.recordResult(win()); });
+    act(() => { result.current.recordPvPResult(pvpWin()); });
+    act(() => { result.current.resetStats(); });
+    expect(result.current.stats).toEqual(initialSessionStats());
+    expect(result.current.pvpStats).toEqual(initialPvPSessionStats());
   });
 });
 
