@@ -393,6 +393,45 @@ describe('SetupScreen — ship selector click triggers onSelectShip', () => {
   });
 });
 
+// ─── LAUNCH BATTLE button class ───────────────────────────────────────────────
+// When allShipsPlaced is false the button carries no ready modifier.
+// When allShipsPlaced is true the button gains btn--ready (green pulsing style).
+
+describe('SetupScreen — LAUNCH BATTLE button class', () => {
+  function launchBtn(allShipsPlaced: boolean): HTMLButtonElement {
+    render(
+      <SetupScreen
+        playerBoard={createBoard()}
+        setupState={{ placedShipNames: [], selectedShipName: null, orientation: 'horizontal' }}
+        allShipsPlaced={allShipsPlaced}
+        sessionStats={initialSessionStats()}
+        onSelectShip={() => {}}
+        onSetOrientation={() => {}}
+        onCellClick={() => {}}
+        onRandomize={() => {}}
+        onClearBoard={() => {}}
+        onBeginGame={() => {}}
+      />
+    );
+    return screen.getByText('► LAUNCH BATTLE') as HTMLButtonElement;
+  }
+
+  it('does not have btn--ready class when ships are not yet placed', () => {
+    const btn = launchBtn(false);
+    expect(btn.className).not.toContain('btn--ready');
+  });
+
+  it('has btn--ready class when all ships are placed', () => {
+    const btn = launchBtn(true);
+    expect(btn.className).toContain('btn--ready');
+  });
+
+  it('does not have btn--primary class when all ships are placed', () => {
+    const btn = launchBtn(true);
+    expect(btn.className).not.toContain('btn--primary');
+  });
+});
+
 // ─── Orientation toggle + control buttons (SetupScreen.tsx lines 109–115) ─────
 // Lines 109–115: HORIZONTAL/VERTICAL call onSetOrientation; RANDOMIZE, CLEAR
 // BOARD, and LAUNCH BATTLE call their respective handlers.

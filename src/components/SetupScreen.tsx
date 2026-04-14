@@ -124,7 +124,7 @@ export default function SetupScreen({
         <button className="btn btn--danger" onClick={onClearBoard}>✕ CLEAR BOARD</button>
 
         <button
-          className="btn btn--primary"
+          className={`btn${allShipsPlaced ? ' btn--ready' : ''}`}
           disabled={!allShipsPlaced}
           onClick={onBeginGame}
         >
