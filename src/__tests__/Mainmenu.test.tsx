@@ -49,6 +49,7 @@ function renderMenu(
   soloStats: SessionStats = initialSessionStats(),
   pvpStats: PvPSessionStats = initialPvPSessionStats(),
   onPvPStart: () => void = jest.fn(),
+  onPlayEffect: () => void = jest.fn(),
 ) {
   return render(
     <MainMenu
@@ -56,6 +57,7 @@ function renderMenu(
       onPvPStart={onPvPStart}
       soloStats={soloStats}
       pvpStats={pvpStats}
+      onPlayEffect={onPlayEffect}
     />
   );
 }
@@ -229,6 +231,14 @@ describe('MainMenu — difficulty buttons', () => {
     expandSolo();
     screen.getByText('HARD').click();
     expect(onSoloStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('clicking a difficulty button calls onPlayEffect with "uiClick"', () => {
+    const onPlayEffect = jest.fn();
+    renderMenu(jest.fn(), initialSessionStats(), initialPvPSessionStats(), jest.fn(), onPlayEffect);
+    expandSolo();
+    screen.getByText('EASY').click();
+    expect(onPlayEffect).toHaveBeenCalledWith('uiClick');
   });
 });
 

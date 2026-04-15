@@ -2,14 +2,16 @@ import { useState } from 'react';
 import type { Difficulty } from '../models/types';
 import { winRate, avgShots, p1WinRate, p2WinRate, p1AvgShots, p2AvgShots, p1Accuracy, p2Accuracy } from '../hooks/useSessionStats';
 import type { SessionStats, PvPSessionStats } from '../hooks/useSessionStats';
+import type { SoundEffect } from '../audio/effects';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface MainMenuProps {
-  onSoloStart:  (difficulty: Difficulty) => void;
-  onPvPStart:   () => void;
-  soloStats:    SessionStats;
-  pvpStats:     PvPSessionStats;
+  onSoloStart:   (difficulty: Difficulty) => void;
+  onPvPStart:    () => void;
+  soloStats:     SessionStats;
+  pvpStats:      PvPSessionStats;
+  onPlayEffect:  (effect: SoundEffect) => void;
 }
 
 // ─── Difficulty tier metadata ─────────────────────────────────────────────────
@@ -29,7 +31,7 @@ const DIFFICULTIES: {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function MainMenu({ onSoloStart, onPvPStart, soloStats, pvpStats }: MainMenuProps) {
+export default function MainMenu({ onSoloStart, onPvPStart, soloStats, pvpStats, onPlayEffect }: MainMenuProps) {
   const [soloExpanded, setSoloExpanded] = useState(false);
   const wr    = winRate(soloStats);
   const shots = avgShots(soloStats);
@@ -73,7 +75,7 @@ export default function MainMenu({ onSoloStart, onPvPStart, soloStats, pvpStats 
                       <button
                         key={value}
                         className={`diff-option diff-option--${modifier}`}
-                        onClick={() => onSoloStart(value)}
+                        onClick={() => { onPlayEffect('uiClick'); onSoloStart(value); }}
                         aria-label={`Start solo game on ${label} difficulty`}
                       >
                         <div className="diff-option__top">

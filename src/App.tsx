@@ -1,11 +1,14 @@
 import './styles/global.css';
 import { useGameState } from './hooks/useGameState';
+import { useSoundManager } from './hooks/useSoundManager';
 import SetupScreen from './components/SetupScreen';
 import GameScreen from './components/GameScreen';
 import GameOver from './components/GameOver';
 import MainMenu from './components/Mainmenu';
 import PvPHandoffScreen from './components/PvPHandoffScreen';
 import PvPGameOver from './components/PvPGameOver';
+import AudioGateScreen from './components/AudioGateScreen';
+import AudioControls from './components/AudioControls';
 import BoardGrid from './components/BoardGrid';
 import FleetRoster from './components/FleetRoster';
 import { useSessionStats } from './hooks/useSessionStats';
@@ -15,8 +18,14 @@ import { useEffect, useRef, useState } from 'react';
 import type { Difficulty } from './models/types';
 
 export default function App() {
+  // ── Sound manager ────────────────────────────────────────────────────────
+  const sounds = useSoundManager();
+
   // ── Screen routing ───────────────────────────────────────────────────────
-  const [screen, setScreen] = useState<'menu' | 'game' | 'pvp'>('menu');
+  const audioUnlocked = localStorage.getItem('battleship-audio-unlocked') === 'true';
+  const [screen, setScreen] = useState<'audio-gate' | 'menu' | 'game' | 'pvp'>(
+    audioUnlocked ? 'menu' : 'audio-gate'
+  );
 
   const {
     gameState,
@@ -42,8 +51,6 @@ export default function App() {
   // ── Session stats ────────────────────────────────────────────────────────
   const { stats: soloStats, pvpStats, recordResult, recordPvPResult } = useSessionStats();
 
-  // Guard against React StrictMode double-invocation and re-recording on
-  // re-renders: only record once per unique shotCount+winner combination.
   const recordedRef = useRef<string | null>(null);
   useEffect(() => {
     if (phase === 'gameover' && winner && difficulty) {
@@ -59,7 +66,6 @@ export default function App() {
   // ── PvP game state ───────────────────────────────────────────────────────
   const pvp = usePvPGameState();
 
-  // Guard against double-recording PvP results
   const pvpRecordedRef = useRef(false);
   useEffect(() => {
     if (pvp.pvpPhase === 'gameover' && pvp.winner !== null) {
@@ -78,11 +84,8 @@ export default function App() {
     }
   }, [pvp.pvpPhase, pvp.winner, pvp.p1Shots, pvp.p2Shots, pvp.p1Hits, pvp.p2Hits, recordPvPResult]);
 
-  // ── Board reveal — hides the GameOver overlay so the player can inspect
-  // the final board state, with a floating NEW BATTLE button to restart.
+  // ── Board reveal ─────────────────────────────────────────────────────────
   const [boardRevealed, setBoardRevealed] = useState(false);
-
-  // Reset boardRevealed whenever we return to the game's setup phase.
   useEffect(() => {
     if (phase === 'setup') setBoardRevealed(false);
   }, [phase]);
@@ -100,7 +103,7 @@ export default function App() {
     setScreen('menu');
   }
 
-  // ── PvP board review (mirrors solo boardRevealed) ───────────────────────
+  // ── PvP board review ─────────────────────────────────────────────────────
   const [pvpBoardRevealed, setPvpBoardRevealed] = useState(false);
 
   function handlePvPRestart() {
@@ -109,45 +112,176 @@ export default function App() {
     setScreen('menu');
   }
 
+  // ── Sound-wrapped setup callbacks (solo) ─────────────────────────────────
+
+  function handlePlaceShip(row: number, col: number): boolean {
+    const result = placeSelectedShip(row, col);
+    if (result) sounds.playEffect('shipPlace');
+    return result;
+  }
+
+  function handleClearBoard() {
+    clearBoard();
+    sounds.playEffect('shipClear');
+  }
+
+  function handleRandomize() {
+    randomizePlacement();
+    sounds.playEffect('randomize');
+  }
+
+  // ── Sound-wrapped setup callbacks (PvP P1) ───────────────────────────────
+
+  function handleP1PlaceShip(row: number, col: number): boolean {
+    const result = pvp.placeP1Ship(row, col);
+    if (result) sounds.playEffect('shipPlace');
+    return result;
+  }
+
+  function handleP1ClearBoard() {
+    pvp.clearP1Board();
+    sounds.playEffect('shipClear');
+  }
+
+  function handleP1Randomize() {
+    pvp.randomizeP1Board();
+    sounds.playEffect('randomize');
+  }
+
+  // ── Sound-wrapped setup callbacks (PvP P2) ───────────────────────────────
+
+  function handleP2PlaceShip(row: number, col: number): boolean {
+    const result = pvp.placeP2Ship(row, col);
+    if (result) sounds.playEffect('shipPlace');
+    return result;
+  }
+
+  function handleP2ClearBoard() {
+    pvp.clearP2Board();
+    sounds.playEffect('shipClear');
+  }
+
+  function handleP2Randomize() {
+    pvp.randomizeP2Board();
+    sounds.playEffect('randomize');
+  }
+
+  // ── Music wiring — phase/screen transitions ──────────────────────────────
+  const pvpPhase = pvp.pvpPhase;
+
+  useEffect(() => {
+    if (!sounds.audioUnlocked) return;
+
+    if (screen === 'audio-gate') { sounds.stopMusic(); return; }
+    if (screen === 'menu')       { sounds.playTrack('menu'); return; }
+
+    if (screen === 'game') {
+      if (phase === 'setup')   { sounds.playTrack('setup');  return; }
+      if (phase === 'playing') { sounds.playTrack('battle'); return; }
+      if (phase === 'gameover') {
+        sounds.playTrack(winner === 'player' ? 'victory' : 'defeat');
+        return;
+      }
+    }
+
+    if (screen === 'pvp') {
+      if (pvpPhase === 'gameover') { sounds.playTrack('victory'); return; }
+      if (pvpPhase === 'playing')  { sounds.playTrack('battle');  return; }
+      sounds.playTrack('setup'); // all setup and handoff phases
+    }
+  }, [screen, phase, pvpPhase, winner, sounds.audioUnlocked]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Combat log sound effects ─────────────────────────────────────────────
+  const latestLogEntry = screen === 'game' ? log[0] : pvp.log[0];
+
+  useEffect(() => {
+    if (!latestLogEntry) return;
+    switch (latestLogEntry.type) {
+      case 'hit':   sounds.playEffect('hit');     break;
+      case 'miss':  sounds.playEffect('miss');    break;
+      case 'sunk':  sounds.playEffect('sunk');    break;
+      case 'enemy': sounds.playEffect('aiFires'); break;
+    }
+  }, [latestLogEntry?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── AI thinking sound ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (aiThinking) sounds.playEffect('aiThinking');
+  }, [aiThinking]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── AudioControls — shared across all screens ─────────────────────────────
+  const audioControls = (
+    <AudioControls
+      muted={sounds.muted}
+      musicVolume={sounds.musicVolume}
+      effectsVolume={sounds.effectsVolume}
+      onToggleMute={sounds.toggleMute}
+      onMusicVolume={sounds.setMusicVolume}
+      onEffectsVolume={sounds.setEffectsVolume}
+    />
+  );
+
+  // ── Audio gate ───────────────────────────────────────────────────────────
+  if (screen === 'audio-gate') {
+    return (
+      <>
+        <AudioGateScreen onUnlock={() => {
+          sounds.unlockAudio();
+          setScreen('menu');
+        }} />
+        {audioControls}
+      </>
+    );
+  }
+
   // ── PvP screen ───────────────────────────────────────────────────────────
   if (screen === 'pvp') {
-    const { pvpPhase, currentPlayer, startingPlayer } = pvp;
+    const { pvpPhase: currentPvpPhase, currentPlayer, startingPlayer } = pvp;
 
-    // ── Handoff screens ──
-    if (pvpPhase === 'handoff-to-p2-setup') {
+    if (currentPvpPhase === 'handoff-to-p2-setup') {
       return (
-        <PvPHandoffScreen
-          message="PLAYER 1 SETUP COMPLETE"
-          subMessage="PLAYER 2 — PRESS ANY KEY TO BEGIN YOUR FLEET DEPLOYMENT"
-          onAdvance={pvp.advanceHandoff}
-        />
+        <>
+          <PvPHandoffScreen
+            message="PLAYER 1 SETUP COMPLETE"
+            subMessage="PLAYER 2 — PRESS ANY KEY TO BEGIN YOUR FLEET DEPLOYMENT"
+            onAdvance={pvp.advanceHandoff}
+            onPlayEffect={sounds.playEffect}
+          />
+          {audioControls}
+        </>
       );
     }
 
-    if (pvpPhase === 'handoff-to-battle') {
+    if (currentPvpPhase === 'handoff-to-battle') {
       return (
-        <PvPHandoffScreen
-          message={`PLAYER ${startingPlayer} GOES FIRST`}
-          subMessage="PRESS ANY KEY TO BEGIN BATTLE"
-          onAdvance={pvp.advanceHandoff}
-        />
+        <>
+          <PvPHandoffScreen
+            message={`PLAYER ${startingPlayer} GOES FIRST`}
+            subMessage="PRESS ANY KEY TO BEGIN BATTLE"
+            onAdvance={pvp.advanceHandoff}
+            onPlayEffect={sounds.playEffect}
+          />
+          {audioControls}
+        </>
       );
     }
 
-    if (pvpPhase === 'handoff-between-turns') {
+    if (currentPvpPhase === 'handoff-between-turns') {
       const nextPlayer = currentPlayer === 1 ? 2 : 1;
       return (
-        <PvPHandoffScreen
-          message={`PLAYER ${nextPlayer}'S TURN`}
-          subMessage="PRESS ANY KEY TO REVEAL YOUR BOARD"
-          onAdvance={pvp.advanceHandoff}
-        />
+        <>
+          <PvPHandoffScreen
+            message={`PLAYER ${nextPlayer}'S TURN`}
+            subMessage="PRESS ANY KEY TO REVEAL YOUR BOARD"
+            onAdvance={pvp.advanceHandoff}
+            onPlayEffect={sounds.playEffect}
+          />
+          {audioControls}
+        </>
       );
     }
 
-    // ── Game over ──
-    if (pvpPhase === 'gameover' && pvp.winner !== null) {
-      // Board review — both players' waters visible with all ships revealed
+    if (currentPvpPhase === 'gameover' && pvp.winner !== null) {
       if (pvpBoardRevealed) {
         return (
           <>
@@ -181,25 +315,28 @@ export default function App() {
             >
               ⟳ NEW BATTLE
             </button>
+            {audioControls}
           </>
         );
       }
 
       return (
-        <PvPGameOver
-          winner={pvp.winner}
-          p1Shots={pvp.p1Shots}
-          p2Shots={pvp.p2Shots}
-          p1Hits={pvp.p1Hits}
-          p2Hits={pvp.p2Hits}
-          onRestart={handlePvPRestart}
-          onViewBoard={() => setPvpBoardRevealed(true)}
-        />
+        <>
+          <PvPGameOver
+            winner={pvp.winner}
+            p1Shots={pvp.p1Shots}
+            p2Shots={pvp.p2Shots}
+            p1Hits={pvp.p1Hits}
+            p2Hits={pvp.p2Hits}
+            onRestart={handlePvPRestart}
+            onViewBoard={() => setPvpBoardRevealed(true)}
+          />
+          {audioControls}
+        </>
       );
     }
 
-    // ── Setup screens ──
-    if (pvpPhase === 'setup-p1') {
+    if (currentPvpPhase === 'setup-p1') {
       return (
         <>
           <div className="scanlines" />
@@ -218,17 +355,18 @@ export default function App() {
               playerLabel="PLAYER 1"
               onSelectShip={pvp.selectP1Ship}
               onSetOrientation={pvp.setP1Orientation}
-              onCellClick={pvp.placeP1Ship}
-              onRandomize={pvp.randomizeP1Board}
-              onClearBoard={pvp.clearP1Board}
+              onCellClick={handleP1PlaceShip}
+              onRandomize={handleP1Randomize}
+              onClearBoard={handleP1ClearBoard}
               onBeginGame={pvp.finishP1Setup}
             />
           </div>
+          {audioControls}
         </>
       );
     }
 
-    if (pvpPhase === 'setup-p2') {
+    if (currentPvpPhase === 'setup-p2') {
       return (
         <>
           <div className="scanlines" />
@@ -247,17 +385,18 @@ export default function App() {
               playerLabel="PLAYER 2"
               onSelectShip={pvp.selectP2Ship}
               onSetOrientation={pvp.setP2Orientation}
-              onCellClick={pvp.placeP2Ship}
-              onRandomize={pvp.randomizeP2Board}
-              onClearBoard={pvp.clearP2Board}
+              onCellClick={handleP2PlaceShip}
+              onRandomize={handleP2Randomize}
+              onClearBoard={handleP2ClearBoard}
               onBeginGame={pvp.finishP2Setup}
             />
           </div>
+          {audioControls}
         </>
       );
     }
 
-    // ── Playing ──
+    // Playing
     const activeLabel = `PLAYER ${currentPlayer}'S TURN`;
     return (
       <>
@@ -279,6 +418,7 @@ export default function App() {
             onFireAt={pvp.fireAt}
           />
         </div>
+        {audioControls}
       </>
     );
   }
@@ -286,12 +426,16 @@ export default function App() {
   // ── Main menu ────────────────────────────────────────────────────────────
   if (screen === 'menu') {
     return (
-      <MainMenu
-        onSoloStart={handleSoloStart}
-        onPvPStart={() => setScreen('pvp')}
-        soloStats={soloStats}
-        pvpStats={pvpStats}
-      />
+      <>
+        <MainMenu
+          onSoloStart={handleSoloStart}
+          onPvPStart={() => setScreen('pvp')}
+          soloStats={soloStats}
+          pvpStats={pvpStats}
+          onPlayEffect={sounds.playEffect}
+        />
+        {audioControls}
+      </>
     );
   }
 
@@ -300,7 +444,6 @@ export default function App() {
     <>
       <div className="scanlines" />
 
-      {/* ── Battle commencing transition ── */}
       {battleStarting && (
         <div className="battle-start-overlay">
           <div className="battle-start-panel">
@@ -311,7 +454,6 @@ export default function App() {
       )}
 
       <div className="app">
-        {/* ── Header ── */}
         <header className="header">
           <div className="header__logo">BATTLE<span>SHIP</span></div>
 
@@ -349,7 +491,6 @@ export default function App() {
           )}
         </header>
 
-        {/* ── Phase routing ── */}
         {phase === 'setup' && (
           <SetupScreen
             playerBoard={gameState.playerBoard}
@@ -358,9 +499,9 @@ export default function App() {
             sessionStats={soloStats}
             onSelectShip={selectShip}
             onSetOrientation={setOrientation}
-            onCellClick={placeSelectedShip}
-            onRandomize={randomizePlacement}
-            onClearBoard={clearBoard}
+            onCellClick={handlePlaceShip}
+            onRandomize={handleRandomize}
+            onClearBoard={handleClearBoard}
             onBeginGame={beginGame}
           />
         )}
@@ -375,7 +516,6 @@ export default function App() {
         )}
       </div>
 
-      {/* ── Game over overlay ── */}
       {phase === 'gameover' && winner && !boardRevealed && (
         <GameOver
           winner={winner}
@@ -387,7 +527,6 @@ export default function App() {
         />
       )}
 
-      {/* ── Floating NEW BATTLE button (shown when board is revealed) ── */}
       {phase === 'gameover' && boardRevealed && (
         <button
           className="btn btn--primary floating-new-battle"
@@ -396,6 +535,8 @@ export default function App() {
           ⟳ NEW BATTLE
         </button>
       )}
+
+      {audioControls}
     </>
   );
 }

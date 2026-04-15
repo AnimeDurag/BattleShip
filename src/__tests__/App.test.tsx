@@ -26,6 +26,10 @@ jest.mock('../components/SetupScreen', () => () => <div>SETUP_SCREEN</div>);
 jest.mock('../components/GameScreen',  () => () => <div>GAME_SCREEN</div>);
 jest.mock('../components/PvPHandoffScreen', () => () => <div>PVP_HANDOFF</div>);
 jest.mock('../components/PvPGameOver',      () => () => <div>PVP_GAME_OVER</div>);
+jest.mock('../components/AudioGateScreen',  () => (props: Record<string, any>) => (
+  <div onClick={props.onUnlock}>AUDIO_GATE</div>
+));
+jest.mock('../components/AudioControls',    () => () => <div>AUDIO_CONTROLS</div>);
 
 // MainMenu mock — renders MAIN_MENU text plus buttons to navigate into game/pvp.
 let lastMenuProps: Record<string, any> = {};
@@ -42,6 +46,36 @@ jest.mock('../components/Mainmenu', () => (props: Record<string, any>) => {
     </>
   );
 });
+
+// useSoundManager mock
+const mockPlayTrack    = jest.fn().mockResolvedValue(undefined);
+const mockStopMusic    = jest.fn();
+const mockPlayEffect   = jest.fn();
+const mockUnlockAudio  = jest.fn();
+const mockToggleMute   = jest.fn();
+const mockSetMusicVolume   = jest.fn();
+const mockSetEffectsVolume = jest.fn();
+
+function defaultSoundState(audioUnlocked = false) {
+  return {
+    muted:            false,
+    musicVolume:      80,
+    effectsVolume:    80,
+    audioUnlocked,
+    toggleMute:       mockToggleMute,
+    setMusicVolume:   mockSetMusicVolume,
+    setEffectsVolume: mockSetEffectsVolume,
+    unlockAudio:      mockUnlockAudio,
+    playTrack:        mockPlayTrack,
+    stopMusic:        mockStopMusic,
+    playEffect:       mockPlayEffect,
+  };
+}
+
+const mockUseSoundManager = jest.fn();
+jest.mock('../hooks/useSoundManager', () => ({
+  useSoundManager: () => mockUseSoundManager(),
+}));
 
 // GameOver mock — captures latest props so tests can invoke onRestart/onViewBoard.
 let lastGameOverProps: Record<string, any> = {};
@@ -167,10 +201,14 @@ import App from '../App';
 
 beforeEach(() => {
   jest.clearAllMocks();
+  localStorage.clear();
   lastMenuProps     = {};
   lastGameOverProps = {};
   mockUseGameState.mockReturnValue(defaultHookState());
   mockUsePvPGameState.mockReturnValue(defaultPvPHookState());
+  // Default: audio already unlocked so existing tests go straight to menu
+  mockUseSoundManager.mockReturnValue(defaultSoundState(true));
+  localStorage.setItem('battleship-audio-unlocked', 'true');
 });
 
 // ─── Screen routing ───────────────────────────────────────────────────────────
@@ -719,5 +757,184 @@ describe('App — board reveal and floating NEW BATTLE', () => {
 
     expect(mockResetGame).toHaveBeenCalled();
     expect(screen.getByText('MAIN_MENU')).toBeDefined();
+  });
+});
+
+// ─── Audio gate routing ───────────────────────────────────────────────────────
+
+describe('App — audio gate routing', () => {
+  it('shows AUDIO_GATE when battleship-audio-unlocked is not set', () => {
+    localStorage.removeItem('battleship-audio-unlocked');
+    mockUseSoundManager.mockReturnValue(defaultSoundState(false));
+    render(<App />);
+    expect(screen.getByText('AUDIO_GATE')).toBeDefined();
+    expect(screen.queryByText('MAIN_MENU')).toBeNull();
+  });
+
+  it('shows MAIN_MENU when battleship-audio-unlocked is "true"', () => {
+    localStorage.setItem('battleship-audio-unlocked', 'true');
+    mockUseSoundManager.mockReturnValue(defaultSoundState(true));
+    render(<App />);
+    expect(screen.getByText('MAIN_MENU')).toBeDefined();
+    expect(screen.queryByText('AUDIO_GATE')).toBeNull();
+  });
+
+  it('AUDIO_CONTROLS renders on the audio gate screen', () => {
+    localStorage.removeItem('battleship-audio-unlocked');
+    mockUseSoundManager.mockReturnValue(defaultSoundState(false));
+    render(<App />);
+    expect(screen.getByText('AUDIO_CONTROLS')).toBeDefined();
+  });
+
+  it('clicking AudioGateScreen calls sounds.unlockAudio and advances to menu', () => {
+    localStorage.removeItem('battleship-audio-unlocked');
+    mockUseSoundManager.mockReturnValue(defaultSoundState(false));
+    render(<App />);
+
+    act(() => { fireEvent.click(screen.getByText('AUDIO_GATE')); });
+
+    expect(mockUnlockAudio).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('MAIN_MENU')).toBeDefined();
+  });
+});
+
+// ─── AudioControls presence ───────────────────────────────────────────────────
+
+describe('App — AudioControls presence', () => {
+  it('renders on menu screen', () => {
+    render(<App />);
+    expect(screen.getByText('AUDIO_CONTROLS')).toBeDefined();
+  });
+
+  it('renders in game tree', () => {
+    render(<App />);
+    act(() => { fireEvent.click(screen.getByText('SOLO_MEDIUM')); });
+    expect(screen.getByText('AUDIO_CONTROLS')).toBeDefined();
+  });
+
+  it('renders on PvP handoff screens', () => {
+    mockUsePvPGameState.mockReturnValue(defaultPvPHookState({ pvpPhase: 'handoff-to-battle' }));
+    render(<App />);
+    act(() => { fireEvent.click(screen.getByText('START_PVP')); });
+    expect(screen.getByText('AUDIO_CONTROLS')).toBeDefined();
+  });
+});
+
+// ─── Music wiring ─────────────────────────────────────────────────────────────
+
+describe('App — music wiring', () => {
+  it('calls playTrack("menu") when screen is menu and audio is unlocked', () => {
+    mockUseSoundManager.mockReturnValue(defaultSoundState(true));
+    render(<App />);
+    expect(mockPlayTrack).toHaveBeenCalledWith('menu');
+  });
+
+  it('calls playTrack("setup") when screen=game phase=setup', () => {
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState: makeGameState({ phase: 'setup' }),
+    }));
+    mockUseSoundManager.mockReturnValue(defaultSoundState(true));
+    render(<App />);
+    act(() => { fireEvent.click(screen.getByText('SOLO_MEDIUM')); });
+    expect(mockPlayTrack).toHaveBeenCalledWith('setup');
+  });
+
+  it('calls playTrack("battle") when screen=game phase=playing', () => {
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState: makeGameState({ phase: 'playing' }),
+    }));
+    mockUseSoundManager.mockReturnValue(defaultSoundState(true));
+    render(<App />);
+    act(() => { fireEvent.click(screen.getByText('SOLO_MEDIUM')); });
+    expect(mockPlayTrack).toHaveBeenCalledWith('battle');
+  });
+
+  it('calls playTrack("victory") when gameover and player wins', () => {
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState: makeGameState({ phase: 'gameover', winner: 'player' }),
+    }));
+    mockUseSoundManager.mockReturnValue(defaultSoundState(true));
+    render(<App />);
+    act(() => { fireEvent.click(screen.getByText('SOLO_MEDIUM')); });
+    expect(mockPlayTrack).toHaveBeenCalledWith('victory');
+  });
+
+  it('calls playTrack("defeat") when gameover and opponent wins', () => {
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState: makeGameState({ phase: 'gameover', winner: 'opponent' }),
+    }));
+    mockUseSoundManager.mockReturnValue(defaultSoundState(true));
+    render(<App />);
+    act(() => { fireEvent.click(screen.getByText('SOLO_MEDIUM')); });
+    expect(mockPlayTrack).toHaveBeenCalledWith('defeat');
+  });
+
+  it('does not call playTrack when audio is not unlocked', () => {
+    mockUseSoundManager.mockReturnValue(defaultSoundState(false));
+    localStorage.setItem('battleship-audio-unlocked', 'true'); // screen=menu, but sounds locked
+    render(<App />);
+    expect(mockPlayTrack).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Effect wiring ────────────────────────────────────────────────────────────
+
+describe('App — effect wiring', () => {
+  it('calls playEffect("aiThinking") when aiThinking transitions to true', () => {
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState:  makeGameState({ phase: 'playing' }),
+      aiThinking: true,
+    }));
+    render(<App />);
+    act(() => { fireEvent.click(screen.getByText('SOLO_MEDIUM')); });
+    expect(mockPlayEffect).toHaveBeenCalledWith('aiThinking');
+  });
+
+  it('calls playEffect("hit") when a hit log entry arrives', () => {
+    const { rerender } = render(<App />);
+    act(() => { fireEvent.click(screen.getByText('SOLO_MEDIUM')); });
+
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState: makeGameState({ phase: 'playing' }),
+      log: [{ id: 'e1', type: 'hit', message: 'Hit!', turn: 'player' }],
+    }));
+    act(() => { rerender(<App />); });
+    expect(mockPlayEffect).toHaveBeenCalledWith('hit');
+  });
+
+  it('calls playEffect("miss") when a miss log entry arrives', () => {
+    const { rerender } = render(<App />);
+    act(() => { fireEvent.click(screen.getByText('SOLO_MEDIUM')); });
+
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState: makeGameState({ phase: 'playing' }),
+      log: [{ id: 'e2', type: 'miss', message: 'Miss!', turn: 'player' }],
+    }));
+    act(() => { rerender(<App />); });
+    expect(mockPlayEffect).toHaveBeenCalledWith('miss');
+  });
+
+  it('calls playEffect("sunk") when a sunk log entry arrives', () => {
+    const { rerender } = render(<App />);
+    act(() => { fireEvent.click(screen.getByText('SOLO_MEDIUM')); });
+
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState: makeGameState({ phase: 'playing' }),
+      log: [{ id: 'e3', type: 'sunk', message: 'Sunk!', turn: 'player' }],
+    }));
+    act(() => { rerender(<App />); });
+    expect(mockPlayEffect).toHaveBeenCalledWith('sunk');
+  });
+
+  it('calls playEffect("aiFires") when an enemy log entry arrives', () => {
+    const { rerender } = render(<App />);
+    act(() => { fireEvent.click(screen.getByText('SOLO_MEDIUM')); });
+
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState: makeGameState({ phase: 'playing' }),
+      log: [{ id: 'e4', type: 'enemy', message: 'Enemy fires!', turn: 'opponent' }],
+    }));
+    act(() => { rerender(<App />); });
+    expect(mockPlayEffect).toHaveBeenCalledWith('aiFires');
   });
 });
