@@ -26,6 +26,7 @@ export default function FleetRoster({ ships, label, enemy = false, compact = fal
                 sunk ? 'fleet-roster__ship--sunk' : '',
               ].filter(Boolean).join(' ')}
             >
+              <span className="fleet-roster__name">{def.name}</span>
               <div className="fleet-roster__blocks">
                 {Array.from({ length: def.size }).map((_, i) => {
                   let mod = '';

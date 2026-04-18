@@ -1541,7 +1541,14 @@ body {
 /* ── Mobile breakpoint ── */
 @media (max-width: 640px) {
 
-  /* Main menu — vertical card stack */
+  /* App container padding — prevents content touching screen edges */
+  .app { padding: 0 1rem; box-sizing: border-box; }
+
+  /* Header padding */
+  .header { padding-left: 1rem; padding-right: 1rem; box-sizing: border-box; }
+
+  /* Main menu — vertical card stack + side padding */
+  .main-menu           { padding: 0 1rem; box-sizing: border-box; }
   .main-menu__modes          { flex-direction: column; }
   .main-menu__mode-card      { width: 100%; }
   .main-menu__difficulties   { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
@@ -1549,46 +1556,57 @@ body {
   /* Session stats — single column */
   .main-menu__session-columns { flex-direction: column; }
 
-  /* GameOver — 2-column stats grid */
+  /* GameOver — 2-column stats grid + padding */
+  .game-over           { padding: 0 1rem; box-sizing: border-box; }
   .gameover-stats__grid { grid-template-columns: 1fr 1fr; }
   .gameover-rank-scale  { flex-wrap: wrap; gap: 0.25rem; }
 
   /* GameOver buttons full width */
   .game-over__actions .btn { width: 100%; }
 
-  /* PvP handoff — larger tap target text */
+  /* PvP handoff — safe padding + larger text */
+  .pvp-handoff         { padding: 1.5rem 1rem; box-sizing: border-box; }
   .pvp-handoff__message { font-size: 1.5rem; }
   .pvp-handoff__sub     { font-size: 0.9rem; }
 
-  /* AudioGate — fill full viewport height as click target */
-  .audio-gate { min-height: 100dvh; }
+  /* AudioGate — fill full viewport height + side padding */
+  .audio-gate { min-height: 100dvh; padding: 0 1rem; box-sizing: border-box; }
 }
 
 /* ── Mini board (MobileGameScreen own board) ── */
 .board-grid--mini {
-  width: 35vw;
-  height: 35vw;
+  width: calc(35vw + 40px);
+  height: calc(35vw + 40px);
   pointer-events: none;
 }
 .board-grid--mini .cell { font-size: 0; }
+
+/* ── Mini board label ── */
+.board-label--mini {
+  font-size: 0.55rem;
+  margin-bottom: 0.2rem;
+}
 
 /* ── Mobile game screen — portrait ── */
 .mobile-game-screen {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
+  gap: 0.75rem;
+  padding: 1rem;
+  padding-top: 0.75rem;
   min-height: 100dvh;
+  box-sizing: border-box;
 }
 
 .mobile-game-screen__mini-board  { align-self: flex-start; }
 .mobile-game-screen__enemy-board { width: 100%; }
+.mobile-game-screen__log-fleet   { width: 100%; display: flex; flex-direction: column; gap: 0.5rem; }
 
 /* ── Mobile game screen — landscape ── */
 @media (max-height: 480px) {
-  .mobile-game-screen            { flex-direction: row; flex-wrap: wrap; }
-  .mobile-game-screen__mini-board  { width: 38vw; height: 38vw; order: 2; }
+  .mobile-game-screen            { flex-direction: row; flex-wrap: wrap; padding: 0.5rem; gap: 0.5rem; }
+  .mobile-game-screen__mini-board  { width: calc(38vw + 40px); height: calc(38vw + 40px); order: 2; }
   .mobile-game-screen__enemy-board { width: 55vw; order: 1; }
   .mobile-game-screen__log-fleet   { width: 100%; order: 3; flex-direction: row; gap: 1rem; }
 }
@@ -1597,18 +1615,18 @@ body {
 .mobile-combat-log              { width: 100%; font-size: 0.75rem; }
 .mobile-combat-log__entries     { max-height: none; }
 .mobile-combat-log__toggle      { width: 100%; padding: 0.25rem; font-size: 0.7rem;
-                                   background: none; border: 1px solid var(--border-dim);
-                                   color: var(--text-muted); cursor: pointer; }
+                                   background: none; border: 1px solid var(--border);
+                                   color: var(--dim); cursor: pointer; }
 
 /* ── Fleet roster compact ── */
 .fleet-roster--compact          { display: flex; flex-direction: row; flex-wrap: wrap;
                                    gap: 0.5rem; justify-content: center; }
 .fleet-roster--compact .fleet-roster__ship { flex-direction: column; align-items: center; }
-.fleet-roster--compact .fleet-roster__name { display: none; }
 
 /* ── Mobile setup screen ── */
 .mobile-setup-screen             { display: flex; flex-direction: column;
-                                    gap: 0.75rem; padding: 0.5rem; }
+                                    gap: 0.75rem; padding: 1rem; padding-top: 0.75rem;
+                                    box-sizing: border-box; }
 .mobile-setup-screen__board      { width: 100%; }
 .mobile-setup-screen__ships      { display: flex; flex-direction: row; overflow-x: auto;
                                     -webkit-overflow-scrolling: touch;
@@ -1619,7 +1637,7 @@ body {
 .mobile-setup-screen__actions .btn { font-size: 0.7rem; padding: 0.5rem 0.25rem; }
 
 /* ── Audio controls mobile ── */
-.audio-controls--mobile          { position: fixed; top: 0.5rem; right: 0.5rem;
+.audio-controls--mobile          { position: fixed; top: 0.5rem; right: 0.75rem;
                                     z-index: 1000; background: none; border: none; padding: 0; }
 .audio-controls__popover         { position: absolute; top: 2rem; right: 0;
                                     background: var(--panel);

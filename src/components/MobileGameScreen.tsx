@@ -26,6 +26,7 @@ export default function MobileGameScreen({
     <div className="mobile-game-screen">
       {/* Mini own board — non-interactive */}
       <div className="mobile-game-screen__mini-board">
+        <div className="board-label board-label--mini">YOUR WATERS</div>
         <div className="board-grid--mini">
           <BoardGrid
             board={playerBoard}
@@ -38,6 +39,7 @@ export default function MobileGameScreen({
 
       {/* Enemy board — full width, primary interaction */}
       <div className="mobile-game-screen__enemy-board">
+        <div className="board-label">ENEMY WATERS</div>
         <div className="game-screen__board-wrap">
           <BoardGrid
             board={opponentBoard}
@@ -53,6 +55,9 @@ export default function MobileGameScreen({
             </div>
           )}
         </div>
+        {isPlayerTurn && (
+          <p className="game-screen__hint">SELECT TARGET COORDINATES</p>
+        )}
       </div>
 
       {/* Combat log + fleet roster */}
