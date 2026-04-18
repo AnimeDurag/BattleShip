@@ -96,6 +96,7 @@ export default function MainMenu({ onSoloStart, onPvPStart, soloStats, pvpStats,
               <div className="main-menu__mode-header">
                 <div className="main-menu__mode-name main-menu__mode-name--active">LOCAL PVP</div>
                 <p className="main-menu__mode-desc">Two players, one device. Hot-seat battle.</p>
+                <p className="main-menu__mode-rule">KEEP FIRING ON HITS — your turn continues until you miss.</p>
               </div>
               <button
                 className="btn btn--primary"

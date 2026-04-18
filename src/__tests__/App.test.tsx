@@ -22,8 +22,10 @@ import type { SetupState, LogEntry } from '../hooks/useGameState';
 
 jest.mock('../styles/global.css', () => ({}), { virtual: true });
 
-jest.mock('../components/SetupScreen', () => () => <div>SETUP_SCREEN</div>);
-jest.mock('../components/GameScreen',  () => () => <div>GAME_SCREEN</div>);
+jest.mock('../components/SetupScreen',       () => () => <div>SETUP_SCREEN</div>);
+jest.mock('../components/GameScreen',        () => () => <div>GAME_SCREEN</div>);
+jest.mock('../components/MobileSetupScreen', () => () => <div>MOBILE_SETUP_SCREEN</div>);
+jest.mock('../components/MobileGameScreen',  () => () => <div>MOBILE_GAME_SCREEN</div>);
 jest.mock('../components/PvPHandoffScreen', () => () => <div>PVP_HANDOFF</div>);
 jest.mock('../components/PvPGameOver',      () => () => <div>PVP_GAME_OVER</div>);
 jest.mock('../components/AudioGateScreen',  () => (props: Record<string, any>) => (
@@ -209,6 +211,8 @@ beforeEach(() => {
   // Default: audio already unlocked so existing tests go straight to menu
   mockUseSoundManager.mockReturnValue(defaultSoundState(true));
   localStorage.setItem('battleship-audio-unlocked', 'true');
+  // Default to desktop width so existing tests use desktop variants
+  Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
 });
 
 // ─── Screen routing ───────────────────────────────────────────────────────────
@@ -936,5 +940,75 @@ describe('App — effect wiring', () => {
     }));
     act(() => { rerender(<App />); });
     expect(mockPlayEffect).toHaveBeenCalledWith('aiFires');
+  });
+});
+
+// ─── Mobile routing ───────────────────────────────────────────────────────────
+
+describe('App — mobile routing', () => {
+  function setMobile() {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 375 });
+  }
+
+  function renderInGame() {
+    const r = render(<App />);
+    clickSoloMedium();
+    return r;
+  }
+
+  it('renders MOBILE_GAME_SCREEN (not GAME_SCREEN) when isMobile=true and phase=playing', () => {
+    setMobile();
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState: makeGameState({ phase: 'playing' }),
+    }));
+    renderInGame();
+    expect(screen.queryByText('GAME_SCREEN')).toBeNull();
+    expect(screen.getByText('MOBILE_GAME_SCREEN')).toBeDefined();
+  });
+
+  it('renders MOBILE_SETUP_SCREEN (not SETUP_SCREEN) when isMobile=true and phase=setup', () => {
+    setMobile();
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState: makeGameState({ phase: 'setup' }),
+    }));
+    renderInGame();
+    expect(screen.queryByText('SETUP_SCREEN')).toBeNull();
+    expect(screen.getByText('MOBILE_SETUP_SCREEN')).toBeDefined();
+  });
+
+  it('renders GAME_SCREEN (not MOBILE_GAME_SCREEN) when isMobile=false and phase=playing', () => {
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState: makeGameState({ phase: 'playing' }),
+    }));
+    renderInGame();
+    expect(screen.getByText('GAME_SCREEN')).toBeDefined();
+    expect(screen.queryByText('MOBILE_GAME_SCREEN')).toBeNull();
+  });
+
+  it('renders SETUP_SCREEN (not MOBILE_SETUP_SCREEN) when isMobile=false and phase=setup', () => {
+    mockUseGameState.mockReturnValue(defaultHookState({
+      gameState: makeGameState({ phase: 'setup' }),
+    }));
+    renderInGame();
+    expect(screen.getByText('SETUP_SCREEN')).toBeDefined();
+    expect(screen.queryByText('MOBILE_SETUP_SCREEN')).toBeNull();
+  });
+
+  it('renders MOBILE_SETUP_SCREEN for PvP setup-p1 when isMobile=true', () => {
+    setMobile();
+    mockUsePvPGameState.mockReturnValue(defaultPvPHookState({ pvpPhase: 'setup-p1' }));
+    render(<App />);
+    clickStartPvP();
+    expect(screen.queryByText('SETUP_SCREEN')).toBeNull();
+    expect(screen.getByText('MOBILE_SETUP_SCREEN')).toBeDefined();
+  });
+
+  it('renders MOBILE_GAME_SCREEN for PvP playing phase when isMobile=true', () => {
+    setMobile();
+    mockUsePvPGameState.mockReturnValue(defaultPvPHookState({ pvpPhase: 'playing' }));
+    render(<App />);
+    clickStartPvP();
+    expect(screen.queryByText('GAME_SCREEN')).toBeNull();
+    expect(screen.getByText('MOBILE_GAME_SCREEN')).toBeDefined();
   });
 });

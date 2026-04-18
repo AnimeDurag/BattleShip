@@ -107,3 +107,35 @@ describe('AudioControls — interaction', () => {
     expect(onEffectsVolume).toHaveBeenCalledWith(25);
   });
 });
+
+describe('AudioControls — mobile behaviour', () => {
+  it('on mobile: renders only the mute icon button initially (no sliders)', () => {
+    const { container } = renderControls({ isMobile: true });
+    expect(screen.getByRole('button', { name: /toggle audio controls/i })).toBeDefined();
+    const sliders = container.querySelectorAll('input[type="range"]');
+    expect(sliders).toHaveLength(0);
+  });
+
+  it('on mobile: clicking the button shows the popover with both sliders', () => {
+    const { container } = renderControls({ isMobile: true });
+    fireEvent.click(screen.getByRole('button', { name: /toggle audio controls/i }));
+    const sliders = container.querySelectorAll('input[type="range"]');
+    expect(sliders).toHaveLength(2);
+  });
+
+  it('on mobile: clicking the button again collapses the popover', () => {
+    const { container } = renderControls({ isMobile: true });
+    const btn = screen.getByRole('button', { name: /toggle audio controls/i });
+    fireEvent.click(btn);
+    expect(container.querySelectorAll('input[type="range"]')).toHaveLength(2);
+    fireEvent.click(btn);
+    expect(container.querySelectorAll('input[type="range"]')).toHaveLength(0);
+  });
+
+  it('on desktop (isMobile=false): renders original layout with two sliders visible', () => {
+    const { container } = renderControls({ isMobile: false });
+    const sliders = container.querySelectorAll('input[type="range"]');
+    expect(sliders).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: /toggle audio controls/i })).toBeNull();
+  });
+});

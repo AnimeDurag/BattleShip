@@ -31,9 +31,9 @@ describe('PvPHandoffScreen — rendering', () => {
     expect(screen.queryByText('PLAYER 2 — PRESS ANY KEY TO BEGIN')).toBeNull();
   });
 
-  it('renders the PRESS ANY KEY TO CONTINUE prompt', () => {
+  it('renders the prompt text', () => {
     render(<PvPHandoffScreen message="TEST" onAdvance={jest.fn()} onPlayEffect={jest.fn()} />);
-    expect(screen.getByText('PRESS ANY KEY TO CONTINUE')).toBeDefined();
+    expect(screen.getByText('PRESS ANY KEY OR TAP TO CONTINUE')).toBeDefined();
   });
 });
 
@@ -62,16 +62,31 @@ describe('PvPHandoffScreen — keypress gate', () => {
     act(() => { fireEvent.click(container.firstChild as Element); });
     expect(onAdvance).not.toHaveBeenCalled();
   });
+
+  it('fires onAdvance when a touchstart event is triggered', () => {
+    const onAdvance = jest.fn();
+    render(<PvPHandoffScreen message="TEST" onAdvance={onAdvance} onPlayEffect={jest.fn()} />);
+    act(() => { fireEvent.touchStart(window); });
+    expect(onAdvance).toHaveBeenCalledTimes(1);
+  });
 });
 
 // ─── Unmount cleanup ─────────────────────────────────────────────────────────
 
 describe('PvPHandoffScreen — unmount cleanup', () => {
-  it('does not call onAdvance after unmount', () => {
+  it('does not call onAdvance after unmount (keydown)', () => {
     const onAdvance = jest.fn();
     const { unmount } = render(<PvPHandoffScreen message="TEST" onAdvance={onAdvance} onPlayEffect={jest.fn()} />);
     unmount();
     act(() => { fireEvent.keyDown(window, { key: 'Enter' }); });
+    expect(onAdvance).not.toHaveBeenCalled();
+  });
+
+  it('does not call onAdvance after unmount (touchstart)', () => {
+    const onAdvance = jest.fn();
+    const { unmount } = render(<PvPHandoffScreen message="TEST" onAdvance={onAdvance} onPlayEffect={jest.fn()} />);
+    unmount();
+    act(() => { fireEvent.touchStart(window); });
     expect(onAdvance).not.toHaveBeenCalled();
   });
 });

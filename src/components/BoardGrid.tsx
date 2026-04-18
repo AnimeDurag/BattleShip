@@ -14,6 +14,7 @@ interface BoardGridProps {
   onRotate?: () => void;          // setup: R key toggles orientation
   revealShips?: boolean;          // gameover: show hidden enemy ship positions
   difficultyChosen?: boolean;     // false while difficulty overlay is active — disables setup kb nav
+  hideLabels?: boolean;           // suppresses row + column label rendering (mini board on mobile)
 }
 
 function previewShipCells(
@@ -44,6 +45,7 @@ export default function BoardGrid({
   onRotate,
   revealShips = false,
   difficultyChosen = true,
+  hideLabels = false,
 }: BoardGridProps) {
   const [hoverCell, setHoverCell] = useState<[number, number] | null>(null);
   const [shaking, setShaking]     = useState(false);
@@ -222,16 +224,18 @@ export default function BoardGrid({
       aria-label={isOwn ? 'Your waters' : 'Enemy waters'}
       className={`board-grid${shaking ? ' board-grid--shake' : ''}`}
     >
-      <div className="board-grid__header">
-        <div />
-        {COLUMN_LABELS.map(label => (
-          <div key={label} className="board-grid__col-label">{label}</div>
-        ))}
-      </div>
+      {!hideLabels && (
+        <div className="board-grid__header">
+          <div />
+          {COLUMN_LABELS.map(label => (
+            <div key={label} className="board-grid__col-label">{label}</div>
+          ))}
+        </div>
+      )}
 
       {board.grid.map((row, r) => (
         <div key={r} className="board-grid__row">
-          <div className="board-grid__row-label">{r + 1}</div>
+          {!hideLabels && <div className="board-grid__row-label">{r + 1}</div>}
           {row.map((cellState, c) => {
             // When keyboard is active on the enemy board, restrict 'attackable'
             // to the cursor cell only — this prevents the CSS :hover highlight

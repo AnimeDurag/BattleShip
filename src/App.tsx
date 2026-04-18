@@ -2,7 +2,9 @@ import './styles/global.css';
 import { useGameState } from './hooks/useGameState';
 import { useSoundManager } from './hooks/useSoundManager';
 import SetupScreen from './components/SetupScreen';
+import MobileSetupScreen from './components/MobileSetupScreen';
 import GameScreen from './components/GameScreen';
+import MobileGameScreen from './components/MobileGameScreen';
 import GameOver from './components/GameOver';
 import MainMenu from './components/Mainmenu';
 import PvPHandoffScreen from './components/PvPHandoffScreen';
@@ -20,6 +22,14 @@ import type { Difficulty } from './models/types';
 export default function App() {
   // ── Sound manager ────────────────────────────────────────────────────────
   const sounds = useSoundManager();
+
+  // ── Mobile detection ─────────────────────────────────────────────────────
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 640);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth <= 640);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   // ── Screen routing ───────────────────────────────────────────────────────
   const audioUnlocked = localStorage.getItem('battleship-audio-unlocked') === 'true';
@@ -186,8 +196,11 @@ export default function App() {
 
     if (screen === 'pvp') {
       if (pvpPhase === 'gameover') { sounds.playTrack('victory'); return; }
-      if (pvpPhase === 'playing')  { sounds.playTrack('battle');  return; }
-      sounds.playTrack('setup'); // all setup and handoff phases
+      if (pvpPhase === 'playing' || pvpPhase === 'handoff-to-battle' || pvpPhase === 'handoff-between-turns') {
+        sounds.playTrack('battle');
+        return;
+      }
+      sounds.playTrack('setup'); // setup-p1, handoff-to-p2-setup, setup-p2
     }
   }, [screen, phase, pvpPhase, winner, sounds.audioUnlocked]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -218,6 +231,7 @@ export default function App() {
       onToggleMute={sounds.toggleMute}
       onMusicVolume={sounds.setMusicVolume}
       onEffectsVolume={sounds.setEffectsVolume}
+      isMobile={isMobile}
     />
   );
 
@@ -258,6 +272,7 @@ export default function App() {
           <PvPHandoffScreen
             message={`PLAYER ${startingPlayer} GOES FIRST`}
             subMessage="PRESS ANY KEY TO BEGIN BATTLE"
+            ruleNote="KEEP FIRING ON HITS — your turn continues until you miss."
             onAdvance={pvp.advanceHandoff}
             onPlayEffect={sounds.playEffect}
           />
@@ -273,6 +288,7 @@ export default function App() {
           <PvPHandoffScreen
             message={`PLAYER ${nextPlayer}'S TURN`}
             subMessage="PRESS ANY KEY TO REVEAL YOUR BOARD"
+            ruleNote="KEEP FIRING ON HITS — your turn continues until you miss."
             onAdvance={pvp.advanceHandoff}
             onPlayEffect={sounds.playEffect}
           />
@@ -337,6 +353,19 @@ export default function App() {
     }
 
     if (currentPvpPhase === 'setup-p1') {
+      const p1SetupProps = {
+        playerBoard:      pvp.p1Board,
+        setupState:       pvp.p1SetupState,
+        allShipsPlaced:   pvp.p1AllShipsPlaced,
+        sessionStats:     initialSessionStats(),
+        playerLabel:      'PLAYER 1' as const,
+        onSelectShip:     pvp.selectP1Ship,
+        onSetOrientation: pvp.setP1Orientation,
+        onCellClick:      handleP1PlaceShip,
+        onRandomize:      handleP1Randomize,
+        onClearBoard:     handleP1ClearBoard,
+        onBeginGame:      pvp.finishP1Setup,
+      };
       return (
         <>
           <div className="scanlines" />
@@ -347,19 +376,10 @@ export default function App() {
                 <div className="status-pill">PLAYER 1 — FLEET DEPLOYMENT</div>
               </div>
             </header>
-            <SetupScreen
-              playerBoard={pvp.p1Board}
-              setupState={pvp.p1SetupState}
-              allShipsPlaced={pvp.p1AllShipsPlaced}
-              sessionStats={initialSessionStats()}
-              playerLabel="PLAYER 1"
-              onSelectShip={pvp.selectP1Ship}
-              onSetOrientation={pvp.setP1Orientation}
-              onCellClick={handleP1PlaceShip}
-              onRandomize={handleP1Randomize}
-              onClearBoard={handleP1ClearBoard}
-              onBeginGame={pvp.finishP1Setup}
-            />
+            {isMobile
+              ? <MobileSetupScreen {...p1SetupProps} />
+              : <SetupScreen      {...p1SetupProps} />
+            }
           </div>
           {audioControls}
         </>
@@ -367,6 +387,19 @@ export default function App() {
     }
 
     if (currentPvpPhase === 'setup-p2') {
+      const p2SetupProps = {
+        playerBoard:      pvp.p2Board,
+        setupState:       pvp.p2SetupState,
+        allShipsPlaced:   pvp.p2AllShipsPlaced,
+        sessionStats:     initialSessionStats(),
+        playerLabel:      'PLAYER 2' as const,
+        onSelectShip:     pvp.selectP2Ship,
+        onSetOrientation: pvp.setP2Orientation,
+        onCellClick:      handleP2PlaceShip,
+        onRandomize:      handleP2Randomize,
+        onClearBoard:     handleP2ClearBoard,
+        onBeginGame:      pvp.finishP2Setup,
+      };
       return (
         <>
           <div className="scanlines" />
@@ -377,19 +410,10 @@ export default function App() {
                 <div className="status-pill">PLAYER 2 — FLEET DEPLOYMENT</div>
               </div>
             </header>
-            <SetupScreen
-              playerBoard={pvp.p2Board}
-              setupState={pvp.p2SetupState}
-              allShipsPlaced={pvp.p2AllShipsPlaced}
-              sessionStats={initialSessionStats()}
-              playerLabel="PLAYER 2"
-              onSelectShip={pvp.selectP2Ship}
-              onSetOrientation={pvp.setP2Orientation}
-              onCellClick={handleP2PlaceShip}
-              onRandomize={handleP2Randomize}
-              onClearBoard={handleP2ClearBoard}
-              onBeginGame={pvp.finishP2Setup}
-            />
+            {isMobile
+              ? <MobileSetupScreen {...p2SetupProps} />
+              : <SetupScreen      {...p2SetupProps} />
+            }
           </div>
           {audioControls}
         </>
@@ -411,12 +435,10 @@ export default function App() {
               </div>
             </div>
           </header>
-          <GameScreen
-            gameState={pvp.currentGameState}
-            log={pvp.log}
-            aiThinking={false}
-            onFireAt={pvp.fireAt}
-          />
+          {isMobile
+            ? <MobileGameScreen gameState={pvp.currentGameState} log={pvp.log} aiThinking={false} onFireAt={pvp.fireAt} />
+            : <GameScreen       gameState={pvp.currentGameState} log={pvp.log} aiThinking={false} onFireAt={pvp.fireAt} />
+          }
         </div>
         {audioControls}
       </>
@@ -491,28 +513,36 @@ export default function App() {
           )}
         </header>
 
-        {phase === 'setup' && (
-          <SetupScreen
-            playerBoard={gameState.playerBoard}
-            setupState={setupState}
-            allShipsPlaced={allShipsPlaced}
-            sessionStats={soloStats}
-            onSelectShip={selectShip}
-            onSetOrientation={setOrientation}
-            onCellClick={handlePlaceShip}
-            onRandomize={handleRandomize}
-            onClearBoard={handleClearBoard}
-            onBeginGame={beginGame}
-          />
+        {phase === 'setup' && (isMobile
+          ? <MobileSetupScreen
+              playerBoard={gameState.playerBoard}
+              setupState={setupState}
+              allShipsPlaced={allShipsPlaced}
+              sessionStats={soloStats}
+              onSelectShip={selectShip}
+              onSetOrientation={setOrientation}
+              onCellClick={handlePlaceShip}
+              onRandomize={handleRandomize}
+              onClearBoard={handleClearBoard}
+              onBeginGame={beginGame}
+            />
+          : <SetupScreen
+              playerBoard={gameState.playerBoard}
+              setupState={setupState}
+              allShipsPlaced={allShipsPlaced}
+              sessionStats={soloStats}
+              onSelectShip={selectShip}
+              onSetOrientation={setOrientation}
+              onCellClick={handlePlaceShip}
+              onRandomize={handleRandomize}
+              onClearBoard={handleClearBoard}
+              onBeginGame={beginGame}
+            />
         )}
 
-        {(phase === 'playing' || phase === 'gameover') && (
-          <GameScreen
-            gameState={gameState}
-            log={log}
-            aiThinking={aiThinking}
-            onFireAt={fireAt}
-          />
+        {(phase === 'playing' || phase === 'gameover') && (isMobile
+          ? <MobileGameScreen gameState={gameState} log={log} aiThinking={aiThinking} onFireAt={fireAt} />
+          : <GameScreen       gameState={gameState} log={log} aiThinking={aiThinking} onFireAt={fireAt} />
         )}
       </div>
 

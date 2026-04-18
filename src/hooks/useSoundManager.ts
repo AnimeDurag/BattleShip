@@ -217,7 +217,13 @@ export function useSoundManager() {
       const el = getTrack(key, TRACK_SRCS[key]);
       const p = el.play();
       if (p !== undefined) {
-        p.then(() => { el.pause(); el.currentTime = 0; }).catch(() => {});
+        p.then(() => {
+          // Only reset if playTrack hasn't already taken over this element.
+          if (currentTrackKeyRef.current !== key) {
+            el.pause();
+            el.currentTime = 0;
+          }
+        }).catch(() => {});
       }
     });
     audioUnlockedRef.current = true;

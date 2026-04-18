@@ -6,9 +6,41 @@ interface FleetRosterProps {
   ships: Ship[];
   label: string;
   enemy?: boolean;
+  compact?: boolean;  // horizontal strip layout for mobile
 }
 
-export default function FleetRoster({ ships, label, enemy = false }: FleetRosterProps) {
+export default function FleetRoster({ ships, label, enemy = false, compact = false }: FleetRosterProps) {
+  if (compact) {
+    return (
+      <div className="fleet-roster fleet-roster--compact">
+        {FLEET.map(def => {
+          const ship     = ships.find(s => s.name === def.name);
+          const sunk     = ship?.sunk ?? false;
+          const hitCount = ship?.hits.size ?? 0;
+          return (
+            <div
+              key={def.name}
+              className={[
+                'fleet-roster__ship',
+                `fleet-roster__ship--${def.name.toLowerCase()}`,
+                sunk ? 'fleet-roster__ship--sunk' : '',
+              ].filter(Boolean).join(' ')}
+            >
+              <div className="fleet-roster__blocks">
+                {Array.from({ length: def.size }).map((_, i) => {
+                  let mod = '';
+                  if (sunk)              mod = 'fleet-roster__block--sunk';
+                  else if (i < hitCount) mod = 'fleet-roster__block--hit';
+                  return <div key={i} className={`fleet-roster__block ${mod}`} />;
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="fleet-roster">
       <div className="panel__title">{label}</div>
