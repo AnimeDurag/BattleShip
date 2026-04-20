@@ -61,24 +61,22 @@ function renderScreen(overrides: Partial<{
 }
 
 describe('MobileGameScreen — portrait layout', () => {
-  it('renders own board wrapped in board-grid--mini container', () => {
+  it('renders own board at full size (no board-grid--mini wrapper)', () => {
     renderScreen();
-    const miniWrapper = document.querySelector('.board-grid--mini');
-    expect(miniWrapper).not.toBeNull();
-    expect(miniWrapper).toContainElement(screen.getByTestId('own-board'));
+    expect(document.querySelector('.board-grid--mini')).toBeNull();
+    expect(screen.getByTestId('own-board')).toBeDefined();
   });
 
-  it('renders enemy board without mini class', () => {
-    renderScreen();
-    const enemyBoard = screen.getByTestId('enemy-board');
-    const miniWrapper = document.querySelector('.board-grid--mini');
-    expect(miniWrapper).not.toContainElement(enemyBoard);
-  });
-
-  it('own board has hideLabels=true (no row/col labels)', () => {
+  it('own board has hideLabels=false (labels visible)', () => {
     renderScreen();
     const ownBoard = screen.getByTestId('own-board');
-    expect(ownBoard.getAttribute('data-hide-labels')).toBe('true');
+    expect(ownBoard.getAttribute('data-hide-labels')).toBe('false');
+  });
+
+  it('renders YOUR WATERS and ENEMY WATERS headers', () => {
+    renderScreen();
+    expect(screen.getByText('YOUR WATERS')).toBeDefined();
+    expect(screen.getByText('ENEMY WATERS')).toBeDefined();
   });
 
   it('own board has no onCellClick (non-interactive)', () => {

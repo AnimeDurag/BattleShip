@@ -1573,41 +1573,27 @@ body {
   .audio-gate { min-height: 100dvh; padding: 0 1rem; box-sizing: border-box; }
 }
 
-/* ── Mini board (MobileGameScreen own board) ── */
-.board-grid--mini {
-  width: calc(35vw + 40px);
-  height: calc(35vw + 40px);
-  pointer-events: none;
-}
-.board-grid--mini .cell { font-size: 0; }
-
-/* ── Mini board label ── */
-.board-label--mini {
-  font-size: 0.55rem;
-  margin-bottom: 0.2rem;
-}
-
 /* ── Mobile game screen — portrait ── */
 .mobile-game-screen {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
+  align-items: stretch;
+  gap: 2rem;
   padding: 1rem;
   padding-top: 0.75rem;
   min-height: 100dvh;
   box-sizing: border-box;
 }
 
-.mobile-game-screen__mini-board  { align-self: flex-start; }
+.mobile-game-screen__own-board   { width: 100%; }
 .mobile-game-screen__enemy-board { width: 100%; }
 .mobile-game-screen__log-fleet   { width: 100%; display: flex; flex-direction: column; gap: 0.5rem; }
 
 /* ── Mobile game screen — landscape ── */
 @media (max-height: 480px) {
-  .mobile-game-screen            { flex-direction: row; flex-wrap: wrap; padding: 0.5rem; gap: 0.5rem; }
-  .mobile-game-screen__mini-board  { width: calc(38vw + 40px); height: calc(38vw + 40px); order: 2; }
-  .mobile-game-screen__enemy-board { width: 55vw; order: 1; }
+  .mobile-game-screen            { flex-direction: row; flex-wrap: wrap; padding: 0.5rem; gap: 1rem; }
+  .mobile-game-screen__own-board   { width: 48%; order: 1; }
+  .mobile-game-screen__enemy-board { width: 48%; order: 2; }
   .mobile-game-screen__log-fleet   { width: 100%; order: 3; flex-direction: row; gap: 1rem; }
 }
 

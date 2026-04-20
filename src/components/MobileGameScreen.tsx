@@ -24,20 +24,17 @@ export default function MobileGameScreen({
 
   return (
     <div className="mobile-game-screen">
-      {/* Mini own board — non-interactive */}
-      <div className="mobile-game-screen__mini-board">
-        <div className="board-label board-label--mini">YOUR WATERS</div>
-        <div className="board-grid--mini">
-          <BoardGrid
-            board={playerBoard}
-            isOwn={true}
-            phase="playing"
-            hideLabels={true}
-          />
-        </div>
+      {/* Own board — full size */}
+      <div className="mobile-game-screen__own-board">
+        <div className="board-label">YOUR WATERS</div>
+        <BoardGrid
+          board={playerBoard}
+          isOwn={true}
+          phase="playing"
+        />
       </div>
 
-      {/* Enemy board — full width, primary interaction */}
+      {/* Enemy board — full size, primary interaction */}
       <div className="mobile-game-screen__enemy-board">
         <div className="board-label">ENEMY WATERS</div>
         <div className="game-screen__board-wrap">
@@ -62,7 +59,6 @@ export default function MobileGameScreen({
 
       {/* Combat log + fleet roster */}
       <div className="mobile-game-screen__log-fleet">
-        {/* Expandable combat log */}
         <div className="mobile-combat-log">
           <div className="mobile-combat-log__entries">
             {(logExpanded ? log : log.slice(0, 5)).map(entry => (
@@ -81,7 +77,6 @@ export default function MobileGameScreen({
           )}
         </div>
 
-        {/* Compact fleet roster */}
         <FleetRoster ships={playerBoard.ships}   label="YOUR FLEET"  compact />
         <FleetRoster ships={opponentBoard.ships} label="ENEMY FLEET" compact enemy />
       </div>
