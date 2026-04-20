@@ -60,6 +60,7 @@ export default function MobileGameScreen({
       {/* Combat log + fleet roster */}
       <div className="mobile-game-screen__log-fleet">
         <div className="mobile-combat-log">
+          <div className="panel__title">COMBAT LOG</div>
           <div className="mobile-combat-log__entries">
             {(logExpanded ? log : log.slice(0, 5)).map(entry => (
               <div key={entry.id} className={`combat-log__entry combat-log__entry--${entry.type}`}>
