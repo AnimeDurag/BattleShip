@@ -11,20 +11,21 @@ interface PvPHandoffScreenProps {
 
 export default function PvPHandoffScreen({ message, subMessage, ruleNote, onAdvance, onPlayEffect }: PvPHandoffScreenProps) {
   useEffect(() => {
-    function advance() {
+    function handleKey() {
       onPlayEffect('handoffAdvance');
       onAdvance();
     }
-    window.addEventListener('keydown', advance);
-    window.addEventListener('touchstart', advance);
-    return () => {
-      window.removeEventListener('keydown', advance);
-      window.removeEventListener('touchstart', advance);
-    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
   }, [onAdvance, onPlayEffect]);
 
+  function handleClick() {
+    onPlayEffect('handoffAdvance');
+    onAdvance();
+  }
+
   return (
-    <div className="pvp-handoff">
+    <div className="pvp-handoff" onClick={handleClick}>
       <div className="pvp-handoff__message">{message}</div>
       {subMessage && <div className="pvp-handoff__sub">{subMessage}</div>}
       {ruleNote && <div className="pvp-handoff__rule">{ruleNote}</div>}

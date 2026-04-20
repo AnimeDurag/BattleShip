@@ -1547,6 +1547,9 @@ body {
   /* Header padding */
   .header { padding-left: 1rem; padding-right: 1rem; box-sizing: border-box; }
 
+  /* Main menu logo — scale down so it fits narrow screens */
+  .main-menu__logo     { font-size: 2rem; letter-spacing: 0.18em; }
+
   /* Main menu — centered column layout + side padding */
   .main-menu           { padding: 0 1rem; box-sizing: border-box; align-items: center; }
   .main-menu__inner    { align-items: center; }

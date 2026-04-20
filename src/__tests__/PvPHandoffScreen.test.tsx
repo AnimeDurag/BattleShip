@@ -56,18 +56,18 @@ describe('PvPHandoffScreen — keypress gate', () => {
     expect(onAdvance).toHaveBeenCalledTimes(3);
   });
 
-  it('does NOT call onAdvance on mouse click', () => {
+  it('fires onAdvance when the overlay is clicked', () => {
     const onAdvance = jest.fn();
     const { container } = render(<PvPHandoffScreen message="TEST" onAdvance={onAdvance} onPlayEffect={jest.fn()} />);
     act(() => { fireEvent.click(container.firstChild as Element); });
-    expect(onAdvance).not.toHaveBeenCalled();
+    expect(onAdvance).toHaveBeenCalledTimes(1);
   });
 
-  it('fires onAdvance when a touchstart event is triggered', () => {
+  it('does NOT fire onAdvance from a window touchstart (no bleed-through)', () => {
     const onAdvance = jest.fn();
     render(<PvPHandoffScreen message="TEST" onAdvance={onAdvance} onPlayEffect={jest.fn()} />);
     act(() => { fireEvent.touchStart(window); });
-    expect(onAdvance).toHaveBeenCalledTimes(1);
+    expect(onAdvance).not.toHaveBeenCalled();
   });
 });
 
@@ -82,11 +82,11 @@ describe('PvPHandoffScreen — unmount cleanup', () => {
     expect(onAdvance).not.toHaveBeenCalled();
   });
 
-  it('does not call onAdvance after unmount (touchstart)', () => {
+  it('does not call onAdvance after unmount (keydown cleanup)', () => {
     const onAdvance = jest.fn();
     const { unmount } = render(<PvPHandoffScreen message="TEST" onAdvance={onAdvance} onPlayEffect={jest.fn()} />);
     unmount();
-    act(() => { fireEvent.touchStart(window); });
+    act(() => { fireEvent.keyDown(window, { key: 'Enter' }); });
     expect(onAdvance).not.toHaveBeenCalled();
   });
 });
