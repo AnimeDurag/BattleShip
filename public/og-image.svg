@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#0a0e14"/>
+
+  <!-- Subtle grid motif — vertical lines every 60px -->
+  <line x1="60"  y1="0" x2="60"  y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="120" y1="0" x2="120" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="180" y1="0" x2="180" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="240" y1="0" x2="240" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="300" y1="0" x2="300" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="360" y1="0" x2="360" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="420" y1="0" x2="420" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="480" y1="0" x2="480" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="540" y1="0" x2="540" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="600" y1="0" x2="600" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="660" y1="0" x2="660" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="720" y1="0" x2="720" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="780" y1="0" x2="780" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="840" y1="0" x2="840" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="900" y1="0" x2="900" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="960" y1="0" x2="960" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="1020" y1="0" x2="1020" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="1080" y1="0" x2="1080" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="1140" y1="0" x2="1140" y2="630" stroke="#4fc3f7" stroke-opacity="0.06"/>
+
+  <!-- Subtle grid motif — horizontal lines every 63px -->
+  <line x1="0" y1="63"  x2="1200" y2="63"  stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="0" y1="126" x2="1200" y2="126" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="0" y1="189" x2="1200" y2="189" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="0" y1="252" x2="1200" y2="252" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="0" y1="315" x2="1200" y2="315" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="0" y1="378" x2="1200" y2="378" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="0" y1="441" x2="1200" y2="441" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="0" y1="504" x2="1200" y2="504" stroke="#4fc3f7" stroke-opacity="0.06"/>
+  <line x1="0" y1="567" x2="1200" y2="567" stroke="#4fc3f7" stroke-opacity="0.06"/>
+
+  <!-- Accent bar — top -->
+  <rect x="0" y="0" width="1200" height="4" fill="#4fc3f7"/>
+
+  <!-- Logo -->
+  <text x="600" y="240"
+        font-family="monospace, 'Courier New'"
+        font-size="96"
+        font-weight="bold"
+        letter-spacing="16"
+        fill="#e8eaf0"
+        text-anchor="middle">BATTLE</text>
+  <text x="600" y="340"
+        font-family="monospace, 'Courier New'"
+        font-size="96"
+        font-weight="bold"
+        letter-spacing="16"
+        fill="#4fc3f7"
+        text-anchor="middle">SHIP</text>
+
+  <!-- Tagline -->
+  <text x="600" y="420"
+        font-family="monospace, 'Courier New'"
+        font-size="28"
+        letter-spacing="6"
+        fill="#8899aa"
+        text-anchor="middle">BROWSER NAVAL COMBAT</text>
+
+  <!-- URL -->
+  <text x="600" y="580"
+        font-family="monospace, 'Courier New'"
+        font-size="20"
+        fill="#4a5568"
+        text-anchor="middle">battleshiproj.netlify.app</text>
+
+  <!-- Accent bar — bottom -->
+  <rect x="0" y="626" width="1200" height="4" fill="#4fc3f7"/>
+</svg>

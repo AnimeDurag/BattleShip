@@ -74,14 +74,18 @@ describe('GameScreen — structural rendering', () => {
     expect(screen.getAllByRole('grid').length).toBe(2);
   });
 
-  it('renders own board with aria-label "Your waters"', () => {
-    renderGameScreen();
-    expect(screen.getByRole('grid', { name: 'Your waters' })).toBeDefined();
+  it('renders own board with aria-label containing "fleet"', () => {
+    const { container } = renderGameScreen();
+    const ownGrid = Array.from(container.querySelectorAll('[role="grid"]'))
+      .find(g => g.getAttribute('aria-label')?.toLowerCase().includes('fleet'));
+    expect(ownGrid).not.toBeUndefined();
   });
 
-  it('renders enemy board with aria-label "Enemy waters"', () => {
-    renderGameScreen();
-    expect(screen.getByRole('grid', { name: 'Enemy waters' })).toBeDefined();
+  it('renders enemy board with aria-label containing "Enemy waters"', () => {
+    const { container } = renderGameScreen();
+    const enemyGrid = Array.from(container.querySelectorAll('[role="grid"]'))
+      .find(g => g.getAttribute('aria-label')?.includes('Enemy waters'));
+    expect(enemyGrid).not.toBeUndefined();
   });
 });
 

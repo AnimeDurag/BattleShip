@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Typecheck · Test · Build
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Node setup with dependency cache ──────────────────────────────────
+      # The cache key includes package-lock.json so the cache is invalidated
+      # whenever dependencies change. Subsequent runs with the same lockfile
+      # restore node_modules in ~5s instead of running npm ci (~60s).
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # ── Install ───────────────────────────────────────────────────────────
+      # npm ci installs exactly what is in package-lock.json and fails if
+      # package.json and package-lock.json are out of sync.
+      - name: Install dependencies
+        run: npm ci
+
+      # ── Type check ────────────────────────────────────────────────────────
+      # Runs tsc --noEmit. Fails the build on any TypeScript error without
+      # producing output files (faster than a full build at this stage).
+      - name: Typecheck
+        run: npm run typecheck
+
+      # ── Test ──────────────────────────────────────────────────────────────
+      # Runs jest. The --ci flag disables interactive mode, uses fewer workers
+      # to avoid memory pressure on GitHub-hosted runners, and treats unhandled
+      # promise rejections as failures.
+      - name: Test
+        run: npm test -- --ci --runInBand
+
+      # ── Build ─────────────────────────────────────────────────────────────
+      # Runs tsc && vite build. Verifies the production bundle compiles and
+      # tree-shakes cleanly. The dist/ artefact is not uploaded — Netlify
+      # handles its own build from source on deployment.
+      - name: Build
+        run: npm run build

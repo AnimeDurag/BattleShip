@@ -496,3 +496,90 @@ describe('SetupScreen — orientation toggle and control buttons', () => {
     expect(onBeginGame).not.toHaveBeenCalled();
   });
 });
+
+// ─── Accessibility ────────────────────────────────────────────────────────────
+
+describe('SetupScreen — accessibility', () => {
+  function renderDefault(orientation: 'horizontal' | 'vertical' = 'horizontal') {
+    return render(
+      <SetupScreen
+        playerBoard={createBoard()}
+        setupState={{ placedShipNames: [], selectedShipName: null, orientation }}
+        allShipsPlaced={false}
+        sessionStats={initialSessionStats()}
+        onSelectShip={() => {}}
+        onSetOrientation={() => {}}
+        onCellClick={() => {}}
+        onRandomize={() => {}}
+        onClearBoard={() => {}}
+        onBeginGame={() => {}}
+      />
+    );
+  }
+
+  it('orientation toggle has role="group" and aria-label="Ship orientation"', () => {
+    const { container } = renderDefault();
+    const group = container.querySelector('[role="group"][aria-label="Ship orientation"]');
+    expect(group).not.toBeNull();
+  });
+
+  it('HORIZONTAL button has aria-pressed="true" when horizontal is active', () => {
+    renderDefault('horizontal');
+    const btn = screen.getByRole('button', { name: 'HORIZONTAL' });
+    expect(btn.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('VERTICAL button has aria-pressed="false" when horizontal is active', () => {
+    renderDefault('horizontal');
+    const btn = screen.getByRole('button', { name: 'VERTICAL' });
+    expect(btn.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('VERTICAL button has aria-pressed="true" when vertical is active', () => {
+    renderDefault('vertical');
+    const btn = screen.getByRole('button', { name: 'VERTICAL' });
+    expect(btn.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('ship selector items have role="button"', () => {
+    const { container } = renderDefault();
+    const shipItems = container.querySelectorAll('.ship-selector__item');
+    shipItems.forEach(item => {
+      expect(item.getAttribute('role')).toBe('button');
+    });
+  });
+
+  it('ship selector items have tabIndex=0', () => {
+    const { container } = renderDefault();
+    const shipItems = container.querySelectorAll('.ship-selector__item');
+    shipItems.forEach(item => {
+      expect(item.getAttribute('tabindex')).toBe('0');
+    });
+  });
+
+  it('ship selector items have aria-label including name and size', () => {
+    const { container } = renderDefault();
+    const carrierItem = container.querySelector('.ship-selector__item[aria-label*="Carrier"]');
+    expect(carrierItem).not.toBeNull();
+    expect(carrierItem?.getAttribute('aria-label')).toContain('5 cells');
+  });
+
+  it('placed ship item aria-label includes ", placed"', () => {
+    const { container } = render(
+      <SetupScreen
+        playerBoard={createBoard()}
+        setupState={{ placedShipNames: ['Destroyer'], selectedShipName: null, orientation: 'horizontal' }}
+        allShipsPlaced={false}
+        sessionStats={initialSessionStats()}
+        onSelectShip={() => {}}
+        onSetOrientation={() => {}}
+        onCellClick={() => {}}
+        onRandomize={() => {}}
+        onClearBoard={() => {}}
+        onBeginGame={() => {}}
+      />
+    );
+    const destroyerItem = container.querySelector('.ship-selector__item[aria-label*="Destroyer"]');
+    expect(destroyerItem?.getAttribute('aria-label')).toContain(', placed');
+  });
+});

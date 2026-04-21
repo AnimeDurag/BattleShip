@@ -26,7 +26,7 @@ export default function AudioControls({
       <button
         className="audio-controls__mute"
         onClick={onToggleMute}
-        aria-label="Toggle mute"
+        aria-label={muted ? 'Unmute audio' : 'Mute audio'}
         aria-pressed={muted}
       >
         {muted ? '🔇' : '🔊'}
@@ -41,6 +41,9 @@ export default function AudioControls({
         step={1}
         value={musicVolume}
         aria-label="Music volume"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={musicVolume}
         onChange={e => onMusicVolume(Number(e.target.value))}
       />
 
@@ -53,6 +56,9 @@ export default function AudioControls({
         step={1}
         value={effectsVolume}
         aria-label="Effects volume"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={effectsVolume}
         onChange={e => onEffectsVolume(Number(e.target.value))}
       />
     </>
@@ -64,8 +70,9 @@ export default function AudioControls({
         <button
           className="audio-controls__mute"
           onClick={() => setIsExpanded(prev => !prev)}
-          aria-label="Toggle audio controls"
+          aria-label="Open audio controls"
           aria-pressed={isExpanded}
+          aria-expanded={isExpanded}
         >
           {muted ? '🔇' : '🔊'}
         </button>
@@ -83,7 +90,7 @@ export default function AudioControls({
       <button
         className="audio-controls__mute"
         onClick={onToggleMute}
-        aria-label="Toggle mute"
+        aria-label={muted ? 'Unmute audio' : 'Mute audio'}
         aria-pressed={muted}
       >
         {muted ? '🔇' : '🔊'}
@@ -98,6 +105,9 @@ export default function AudioControls({
         step={1}
         value={musicVolume}
         aria-label="Music volume"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={musicVolume}
         onChange={e => onMusicVolume(Number(e.target.value))}
       />
 
@@ -110,6 +120,9 @@ export default function AudioControls({
         step={1}
         value={effectsVolume}
         aria-label="Effects volume"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={effectsVolume}
         onChange={e => onEffectsVolume(Number(e.target.value))}
       />
     </div>

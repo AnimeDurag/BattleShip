@@ -24,13 +24,14 @@ export default function MobileGameScreen({
 
   return (
     <div className="mobile-game-screen">
-      {/* Own board — full size */}
+      {/* Own board — display-only status view, treated as image by screen readers */}
       <div className="mobile-game-screen__own-board">
         <div className="board-label">YOUR WATERS</div>
         <BoardGrid
           board={playerBoard}
           isOwn={true}
           phase="playing"
+          boardRole="img"
         />
       </div>
 
@@ -61,7 +62,13 @@ export default function MobileGameScreen({
       <div className="mobile-game-screen__log-fleet">
         <div className="mobile-combat-log">
           <div className="panel__title">COMBAT LOG</div>
-          <div className="mobile-combat-log__entries">
+          <div
+            className="mobile-combat-log__entries"
+            aria-live="polite"
+            aria-atomic="false"
+            aria-relevant="additions"
+            aria-label="Combat log"
+          >
             {(logExpanded ? log : log.slice(0, 5)).map(entry => (
               <div key={entry.id} className={`combat-log__entry combat-log__entry--${entry.type}`}>
                 {entry.message}
@@ -71,6 +78,8 @@ export default function MobileGameScreen({
           {log.length > 5 && (
             <button
               className="mobile-combat-log__toggle"
+              aria-label={logExpanded ? 'Collapse combat log' : `Expand combat log — ${log.length - 5} more entries`}
+              aria-expanded={logExpanded}
               onClick={() => setLogExpanded(prev => !prev)}
             >
               {logExpanded ? '▲ HIDE' : `▼ +${log.length - 5} MORE`}

@@ -1,5 +1,7 @@
+import { useRef, useEffect } from 'react';
 import { calcScore, getRank, RANKS, getCommentaryText } from '../utils/scoring';
 import { winRate, avgShots } from '../hooks/useSessionStats';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import type { SessionStats } from '../hooks/useSessionStats';
 import type { Difficulty } from '../models/types';
 
@@ -25,7 +27,6 @@ export default function GameOver({
   const isVictory = winner === 'player';
   const score     = isVictory ? calcScore(shotCount, difficulty ?? 'easy') : null;
   const rank      = score !== null ? getRank(score) : null;
-  // Delegate to the pure scoring utility so the logic is independently testable
   function getCommentary(): string {
     if (score === null || difficulty === null) return '';
     return getCommentaryText(score, shotCount, difficulty);
@@ -34,9 +35,24 @@ export default function GameOver({
   const wr    = winRate(sessionStats);
   const shots = avgShots(sessionStats);
 
+  const panelRef     = useRef<HTMLDivElement>(null);
+  const restartBtnRef = useRef<HTMLButtonElement>(null);
+
+  useFocusTrap(panelRef);
+
+  useEffect(() => {
+    restartBtnRef.current?.focus();
+  }, []);
+
   return (
     <div className="gameover-overlay">
-      <div className="gameover-panel">
+      <div
+        className="gameover-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={isVictory ? 'Victory' : 'Defeated'}
+        ref={panelRef}
+      >
 
         {/* ── Accent bar changes color on defeat ── */}
         <div className={`gameover-panel__accent ${isVictory ? '' : 'gameover-panel__accent--defeat'}`} />
@@ -109,6 +125,7 @@ export default function GameOver({
                   key={r.tier}
                   className={`gameover-rank-scale__item${r.tier === rank.tier ? ' gameover-rank-scale__item--active' : ''}`}
                   style={r.tier === rank.tier ? { color: `var(${r.cssVar})`, borderColor: `var(${r.cssVar})` } : {}}
+                  aria-current={r.tier === rank.tier ? 'true' : undefined}
                 >
                   {r.label}
                 </div>
@@ -163,7 +180,11 @@ export default function GameOver({
           </div>
         )}
 
-        <button className="btn btn--primary gameover-panel__btn" onClick={onRestart}>
+        <button
+          ref={restartBtnRef}
+          className="btn btn--primary gameover-panel__btn"
+          onClick={onRestart}
+        >
           ⟳ NEW BATTLE
         </button>
       </div>

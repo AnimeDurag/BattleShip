@@ -47,14 +47,16 @@ describe('BoardGrid — ARIA', () => {
     expect(screen.getByRole('grid')).toBeDefined();
   });
 
-  it('has aria-label "Your waters" for own board', () => {
-    render(<BoardGrid board={createBoard()} isOwn={true} phase="playing" />);
-    expect(screen.getByRole('grid', { name: 'Your waters' })).toBeDefined();
+  it('has aria-label containing "fleet" for own board in playing phase', () => {
+    const { container } = render(<BoardGrid board={createBoard()} isOwn={true} phase="playing" />);
+    const grid = container.querySelector('[role="grid"]');
+    expect(grid?.getAttribute('aria-label')?.toLowerCase()).toContain('fleet');
   });
 
-  it('has aria-label "Enemy waters" for enemy board', () => {
-    render(<BoardGrid board={createBoard()} isOwn={false} phase="playing" />);
-    expect(screen.getByRole('grid', { name: 'Enemy waters' })).toBeDefined();
+  it('has aria-label containing "Enemy waters" for enemy board', () => {
+    const { container } = render(<BoardGrid board={createBoard()} isOwn={false} phase="playing" />);
+    const grid = container.querySelector('[role="grid"]');
+    expect(grid?.getAttribute('aria-label')).toContain('Enemy waters');
   });
 });
 
@@ -65,53 +67,52 @@ describe('BoardGrid — cell interactivity', () => {
     render(
       <BoardGrid board={createBoard()} isOwn={false} phase="playing" onCellClick={() => {}} />
     );
-    expect(screen.getAllByRole('button', { name: 'Attack cell' }).length).toBe(100);
+    expect(screen.getAllByRole('button', { name: /fire here/ }).length).toBe(100);
   });
 
   it('does not render attack buttons on own board', () => {
     render(<BoardGrid board={createBoard()} isOwn={true} phase="playing" />);
-    expect(screen.queryAllByRole('button', { name: 'Attack cell' }).length).toBe(0);
+    expect(screen.queryAllByRole('button', { name: /fire here/ }).length).toBe(0);
   });
 
   it('does not render attack buttons when onCellClick is absent', () => {
     render(<BoardGrid board={createBoard()} isOwn={false} phase="playing" />);
-    expect(screen.queryAllByRole('button', { name: 'Attack cell' }).length).toBe(0);
+    expect(screen.queryAllByRole('button', { name: /fire here/ }).length).toBe(0);
   });
 
-  it('calls onCellClick with (0, 0) when the first cell is clicked', () => {
+  it('calls onCellClick with (0, 0) when the first cell (A1) is clicked', () => {
     const onCellClick = jest.fn();
     render(
       <BoardGrid board={createBoard()} isOwn={false} phase="playing" onCellClick={onCellClick} />
     );
-    fireEvent.click(screen.getAllByRole('button', { name: 'Attack cell' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'A1 — fire here' }));
     expect(onCellClick).toHaveBeenCalledWith(0, 0);
   });
 
-  it('calls onCellClick with (0, 9) for the last cell in row 0', () => {
+  it('calls onCellClick with (0, 9) for the last cell in row 0 (J1)', () => {
     const onCellClick = jest.fn();
     render(
       <BoardGrid board={createBoard()} isOwn={false} phase="playing" onCellClick={onCellClick} />
     );
-    fireEvent.click(screen.getAllByRole('button', { name: 'Attack cell' })[9]);
+    fireEvent.click(screen.getByRole('button', { name: 'J1 — fire here' }));
     expect(onCellClick).toHaveBeenCalledWith(0, 9);
   });
 
-  it('calls onCellClick with (1, 0) for the first cell in row 1', () => {
+  it('calls onCellClick with (1, 0) for the first cell in row 1 (A2)', () => {
     const onCellClick = jest.fn();
     render(
       <BoardGrid board={createBoard()} isOwn={false} phase="playing" onCellClick={onCellClick} />
     );
-    fireEvent.click(screen.getAllByRole('button', { name: 'Attack cell' })[10]);
+    fireEvent.click(screen.getByRole('button', { name: 'A2 — fire here' }));
     expect(onCellClick).toHaveBeenCalledWith(1, 0);
   });
 
-  it('calls onCellClick with (9, 9) for the last cell overall', () => {
+  it('calls onCellClick with (9, 9) for the last cell overall (J10)', () => {
     const onCellClick = jest.fn();
     render(
       <BoardGrid board={createBoard()} isOwn={false} phase="playing" onCellClick={onCellClick} />
     );
-    const buttons = screen.getAllByRole('button', { name: 'Attack cell' });
-    fireEvent.click(buttons[99]);
+    fireEvent.click(screen.getByRole('button', { name: 'J10 — fire here' }));
     expect(onCellClick).toHaveBeenCalledWith(9, 9);
   });
 });
@@ -120,7 +121,7 @@ describe('BoardGrid — cell interactivity', () => {
 
 describe('BoardGrid — setup phase', () => {
   it('renders 100 place-ship buttons when phase=setup, isOwn=true, setupShipSize provided', () => {
-    render(
+    const { container } = render(
       <BoardGrid
         board={createBoard()}
         isOwn={true}
@@ -130,18 +131,18 @@ describe('BoardGrid — setup phase', () => {
         onCellClick={() => {}}
       />
     );
-    expect(screen.getAllByRole('button', { name: 'Place ship' }).length).toBe(100);
+    expect(container.querySelectorAll('[role="button"]').length).toBe(100);
   });
 
   it('does not render place-ship buttons when setupShipSize is absent', () => {
-    render(
+    const { container } = render(
       <BoardGrid board={createBoard()} isOwn={true} phase="setup" onCellClick={() => {}} />
     );
-    expect(screen.queryAllByRole('button', { name: 'Place ship' }).length).toBe(0);
+    expect(container.querySelectorAll('[role="button"]').length).toBe(0);
   });
 
   it('does not render place-ship buttons on enemy board in setup', () => {
-    render(
+    const { container } = render(
       <BoardGrid
         board={createBoard()}
         isOwn={false}
@@ -151,7 +152,7 @@ describe('BoardGrid — setup phase', () => {
         onCellClick={() => {}}
       />
     );
-    expect(screen.queryAllByRole('button', { name: 'Place ship' }).length).toBe(0);
+    expect(container.querySelectorAll('[role="button"]').length).toBe(0);
   });
 });
 
@@ -185,7 +186,7 @@ describe('BoardGrid — shake animation on invalid placement', () => {
     );
 
     // Clicking cell (0,0) causes a collision → invalid → shake
-    fireEvent.click(screen.getAllByRole('button', { name: 'Place ship' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'A1' }));
     expect(container.querySelector('.board-grid--shake')).not.toBeNull();
   });
 
@@ -215,7 +216,7 @@ describe('BoardGrid — shake animation on invalid placement', () => {
       />
     );
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Place ship' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'A1' }));
     expect(onCellClick).not.toHaveBeenCalled();
   });
 });
@@ -458,8 +459,8 @@ describe('BoardGrid — hover preview and onMouseEnter', () => {
         onCellClick={onCellClick}
       />
     );
-    const cells = screen.getAllByRole('button', { name: 'Attack cell' });
-    fireEvent.mouseEnter(cells[5]); // cell (0,5) — triggers moveCursor(0,5)
+    const cells = screen.getAllByRole('button', { name: /fire here/ });
+    fireEvent.mouseEnter(cells[5]); // cell (0,5) = F1 — triggers moveCursor(0,5)
     fireEvent.keyDown(window, { key: 'Enter' });
     expect(onCellClick).toHaveBeenCalledWith(0, 5);
   });
@@ -550,9 +551,8 @@ describe('BoardGrid — hover preview and onMouseEnter', () => {
         onCellClick={() => {}}
       />
     );
-    const buttons = screen.getAllByRole('button', { name: 'Place ship' });
-    // Button at index 90 = row 9, col 0
-    fireEvent.click(buttons[90]);
+    // Cell at row 9, col 0 = A10
+    fireEvent.click(screen.getByRole('button', { name: 'A10' }));
     expect(container.querySelector('.board-grid--shake')).not.toBeNull();
   });
 
@@ -568,8 +568,8 @@ describe('BoardGrid — hover preview and onMouseEnter', () => {
         onCellClick={onCellClick}
       />
     );
-    const buttons = screen.getAllByRole('button', { name: 'Place ship' });
-    fireEvent.click(buttons[90]); // row 9, col 0 — vertical 3-ship goes out of bounds
+    // Cell at row 9, col 0 = A10 — vertical 3-ship goes out of bounds
+    fireEvent.click(screen.getByRole('button', { name: 'A10' }));
     expect(onCellClick).not.toHaveBeenCalled();
   });
 });

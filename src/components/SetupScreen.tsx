@@ -86,7 +86,17 @@ export default function SetupScreen({
                   placed   && 'ship-selector__item--placed',
                 )}
                 style={{ '--item-ship-color': `var(${colorVar})` } as React.CSSProperties}
+                role="button"
+                tabIndex={0}
+                aria-pressed={selected}
+                aria-label={`${def.name}, ${def.size} cells${placed ? ', placed' : ''}`}
                 onClick={() => onSelectShip(def.name)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectShip(def.name);
+                  }
+                }}
               >
                 <div className="ship-selector__info">
                   <div className="ship-selector__swatch" />
@@ -105,15 +115,21 @@ export default function SetupScreen({
         {/* Orientation toggle */}
         <div className="panel">
           <div className="panel__title">ORIENTATION</div>
-          <div className="orientation-toggle">
+          <div
+            className="orientation-toggle"
+            role="group"
+            aria-label="Ship orientation"
+          >
             <button
               className={cx('orientation-toggle__btn', orientation === 'horizontal' && 'orientation-toggle__btn--active')}
+              aria-pressed={orientation === 'horizontal'}
               onClick={() => onSetOrientation('horizontal')}
             >
               HORIZONTAL
             </button>
             <button
               className={cx('orientation-toggle__btn', orientation === 'vertical' && 'orientation-toggle__btn--active')}
+              aria-pressed={orientation === 'vertical'}
               onClick={() => onSetOrientation('vertical')}
             >
               VERTICAL

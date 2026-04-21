@@ -1,3 +1,6 @@
+import { useRef, useEffect } from 'react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
+
 interface PvPGameOverProps {
   winner:       1 | 2;
   p1Shots:      number;
@@ -14,9 +17,24 @@ function formatAccuracy(hits: number, shots: number): string {
 }
 
 export default function PvPGameOver({ winner, p1Shots, p2Shots, p1Hits, p2Hits, onRestart, onViewBoard }: PvPGameOverProps) {
+  const panelRef      = useRef<HTMLDivElement>(null);
+  const restartBtnRef = useRef<HTMLButtonElement>(null);
+
+  useFocusTrap(panelRef);
+
+  useEffect(() => {
+    restartBtnRef.current?.focus();
+  }, []);
+
   return (
     <div className="gameover-overlay">
-      <div className="gameover-panel">
+      <div
+        className="gameover-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Player ${winner} wins`}
+        ref={panelRef}
+      >
         <div className="gameover-panel__accent" />
 
         {onViewBoard && (
@@ -60,7 +78,11 @@ export default function PvPGameOver({ winner, p1Shots, p2Shots, p1Hits, p2Hits, 
           </tbody>
         </table>
 
-        <button className="btn btn--primary gameover-panel__btn" onClick={onRestart}>
+        <button
+          ref={restartBtnRef}
+          className="btn btn--primary gameover-panel__btn"
+          onClick={onRestart}
+        >
           ⟳ NEW BATTLE
         </button>
       </div>

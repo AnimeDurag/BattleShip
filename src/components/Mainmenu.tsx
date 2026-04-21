@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { Difficulty } from '../models/types';
 import { winRate, avgShots, p1WinRate, p2WinRate, p1AvgShots, p2AvgShots, p1Accuracy, p2Accuracy } from '../hooks/useSessionStats';
 import type { SessionStats, PvPSessionStats } from '../hooks/useSessionStats';
@@ -36,6 +36,11 @@ export default function MainMenu({ onSoloStart, onPvPStart, soloStats, pvpStats,
   const wr    = winRate(soloStats);
   const shots = avgShots(soloStats);
 
+  const soloToggleRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    soloToggleRef.current?.focus();
+  }, []);
+
   const showStats = soloStats.gamesPlayed > 0 || pvpStats.gamesPlayed > 0;
 
   return (
@@ -59,9 +64,11 @@ export default function MainMenu({ onSoloStart, onPvPStart, soloStats, pvpStats,
             {/* ── Solo vs AI — active ── */}
             <div className={`main-menu__mode-block${soloExpanded ? ' main-menu__mode-block--expanded' : ''}`}>
               <button
+                ref={soloToggleRef}
                 className="main-menu__mode-toggle"
                 onClick={() => setSoloExpanded(e => !e)}
                 aria-expanded={soloExpanded}
+                aria-label="Solo vs AI — select difficulty"
               >
                 <div className="main-menu__mode-name main-menu__mode-name--active">SOLO VS AI</div>
                 <p className="main-menu__mode-desc">Challenge the computer. Select your threat level.</p>
@@ -76,7 +83,7 @@ export default function MainMenu({ onSoloStart, onPvPStart, soloStats, pvpStats,
                         key={value}
                         className={`diff-option diff-option--${modifier}`}
                         onClick={() => { onPlayEffect('uiClick'); onSoloStart(value); }}
-                        aria-label={`Start solo game on ${label} difficulty`}
+                        aria-label={`Start solo game on ${label} difficulty: ${description}`}
                       >
                         <div className="diff-option__top">
                           <span className="diff-option__label">{label}</span>
@@ -107,7 +114,12 @@ export default function MainMenu({ onSoloStart, onPvPStart, soloStats, pvpStats,
             </div>
 
             {/* ── Online — disabled ── */}
-            <div className="main-menu__mode-block main-menu__mode-block--disabled" aria-disabled="true">
+            <div
+              className="main-menu__mode-block main-menu__mode-block--disabled"
+              aria-disabled="true"
+              role="region"
+              aria-label="Online — coming soon"
+            >
               <div className="main-menu__mode-header">
                 <div className="main-menu__mode-name">ONLINE</div>
                 <p className="main-menu__mode-desc">Real-time multiplayer over the network.</p>

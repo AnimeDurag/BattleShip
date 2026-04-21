@@ -609,3 +609,45 @@ describe('GameOver — session stats values', () => {
     expect(within(cell).getByText('3')).toBeDefined();
   });
 });
+
+// ─── ARIA / accessibility ─────────────────────────────────────────────────────
+
+describe('GameOver — accessibility', () => {
+  it('has role="dialog"', () => {
+    const { container } = renderGameOver('player', 25);
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+  });
+
+  it('has aria-modal="true"', () => {
+    const { container } = renderGameOver('player', 25);
+    const dialog = container.querySelector('[role="dialog"]');
+    expect(dialog?.getAttribute('aria-modal')).toBe('true');
+  });
+
+  it('dialog aria-label is "Victory" for player win', () => {
+    const { container } = renderGameOver('player', 25);
+    const dialog = container.querySelector('[role="dialog"]');
+    expect(dialog?.getAttribute('aria-label')).toBe('Victory');
+  });
+
+  it('dialog aria-label is "Defeated" for opponent win', () => {
+    const { container } = renderGameOver('opponent', 40);
+    const dialog = container.querySelector('[role="dialog"]');
+    expect(dialog?.getAttribute('aria-label')).toBe('Defeated');
+  });
+
+  it('active rank scale item has aria-current="true"', () => {
+    const { container } = renderGameOver('player', 30); // Captain active
+    const active = container.querySelector('.gameover-rank-scale__item--active');
+    expect(active?.getAttribute('aria-current')).toBe('true');
+  });
+
+  it('inactive rank scale items do not have aria-current', () => {
+    const { container } = renderGameOver('player', 30);
+    const items = container.querySelectorAll('.gameover-rank-scale__item');
+    const inactive = Array.from(items).filter(el => !el.className.includes('--active'));
+    inactive.forEach(el => {
+      expect(el.getAttribute('aria-current')).toBeNull();
+    });
+  });
+});

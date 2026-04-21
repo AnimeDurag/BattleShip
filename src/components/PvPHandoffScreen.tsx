@@ -25,7 +25,13 @@ export default function PvPHandoffScreen({ message, subMessage, ruleNote, onAdva
   }
 
   return (
-    <div className="pvp-handoff" onClick={handleClick}>
+    <div
+      className="pvp-handoff"
+      role="alertdialog"
+      aria-modal="true"
+      aria-label={message}
+      onClick={handleClick}
+    >
       <div className="pvp-handoff__message">{message}</div>
       {subMessage && <div className="pvp-handoff__sub">{subMessage}</div>}
       {ruleNote && <div className="pvp-handoff__rule">{ruleNote}</div>}

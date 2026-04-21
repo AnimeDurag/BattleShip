@@ -20,6 +20,7 @@ A full-featured Battleship game built with React 19, TypeScript 5.9, and Vite 6.
 - [Scoring System](#scoring-system)
 - [Audio System](#audio-system)
 - [Music Credits](#music-credits)
+- [Offline and CDN dependencies](#offline-and-cdn-dependencies)
 - [Scripts Reference](#scripts-reference)
 
 ---
@@ -288,17 +289,31 @@ On first visit, an **Audio Gate** screen requires a click before any audio plays
 
 ## Music Credits
 
-Music by Kevin MacLeod (incompetech.com)
-Licensed under Creative Commons: By Attribution 4.0 License
-https://creativecommons.org/licenses/by/4.0/
+Background music is by Kevin MacLeod ([incompetech.com](https://incompetech.com)),
+licensed under [Creative Commons: By Attribution 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-| Track | Used for |
+| Track used in-game | Original title |
 |---|---|
-| "Hitman" | Main Menu |
-| "Investigations" | Fleet Deployment |
-| "Five Armies" | Battle |
-| "Fanfare for Space" | Victory |
-| "Anguish" | Defeat |
+| Main menu | "Hitman" |
+| Fleet deployment | "Investigations" |
+| Battle | "Five Armies" |
+| Victory | "Fanfare for Space" |
+| Defeat | "Anguish" |
+
+---
+
+## Offline and CDN dependencies
+
+The game uses two external resources loaded at runtime:
+
+**Google Fonts** — The UI typeface is loaded from `fonts.googleapis.com`.
+In offline environments or networks that block Google's CDN the font will
+not load; the browser will fall back to the system monospace font and the
+game remains fully playable.
+
+**Audio files** — All music tracks are bundled with the application and
+work offline. Web Audio API sound effects are synthesised in the browser
+and require no network access.
 
 ---
 

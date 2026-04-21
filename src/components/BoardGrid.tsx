@@ -15,6 +15,7 @@ interface BoardGridProps {
   revealShips?: boolean;          // gameover: show hidden enemy ship positions
   difficultyChosen?: boolean;     // false while difficulty overlay is active — disables setup kb nav
   hideLabels?: boolean;           // suppresses row + column label rendering (mini board on mobile)
+  boardRole?: 'grid' | 'img';    // 'img' for non-interactive display-only boards (e.g. mini own board)
 }
 
 function previewShipCells(
@@ -46,6 +47,7 @@ export default function BoardGrid({
   revealShips = false,
   difficultyChosen = true,
   hideLabels = false,
+  boardRole = 'grid',
 }: BoardGridProps) {
   const [hoverCell, setHoverCell] = useState<[number, number] | null>(null);
   const [shaking, setShaking]     = useState(false);
@@ -218,10 +220,18 @@ export default function BoardGrid({
 
   const [cursorRow, cursorCol] = cursorCellRef.current;
 
+  const gridAriaLabel = boardRole === 'img'
+    ? 'Your fleet status'
+    : isOwn
+      ? (phase === 'setup' ? 'Deploy your fleet — place ships on the grid' : 'Your fleet — shows where enemy has fired')
+      : 'Enemy waters — click to fire';
+
   return (
     <div
-      role="grid"
-      aria-label={isOwn ? 'Your waters' : 'Enemy waters'}
+      role={boardRole}
+      aria-label={gridAriaLabel}
+      aria-live={boardRole === 'grid' && !isOwn && phase === 'playing' ? 'polite' : undefined}
+      aria-atomic={boardRole === 'grid' && !isOwn && phase === 'playing' ? 'false' : undefined}
       className={`board-grid${shaking ? ' board-grid--shake' : ''}`}
     >
       {!hideLabels && (
@@ -263,6 +273,9 @@ export default function BoardGrid({
             const effectiveName = shipAtCell(board.ships, r, c);
             const effectiveState = isRevealedShip ? 'ship' : cellState;
 
+            const isAlreadyAttacked = !isOwn && phase === 'playing' &&
+              (cellState === 'hit' || cellState === 'miss' || cellState === 'sunk');
+
             return (
               <Cell
                 key={c}
@@ -273,6 +286,9 @@ export default function BoardGrid({
                 previewState={previewCells.get(`${r},${c}`) ?? null}
                 focused={isFocused}
                 shipName={effectiveState === 'ship' ? effectiveName : undefined}
+                col={COLUMN_LABELS[c]}
+                row={r + 1}
+                ariaDisabled={isAlreadyAttacked && !attackable ? true : undefined}
                 onClick={() => handleCellClick(r, c)}
                 onMouseEnter={() => {
                   mouseActiveRef.current = true;

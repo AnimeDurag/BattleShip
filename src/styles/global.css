@@ -20,6 +20,8 @@
   --bright:     #d0eaff;
   --mono:       'Share Tech Mono', monospace;
   --display:    'Orbitron', monospace;
+  /* Focus ring colour — matches primary accent; override per-component if needed */
+  --focus-ring: #4fc3f7;
 }
 
 body {
@@ -31,13 +33,20 @@ body {
 }
 
 /* ─── Focus visible ───────────────────────────────────────────────────────── */
-/* Provides a visible keyboard focus indicator for all interactive elements.  */
-/* The enemy board already has .cell--focused for arrow-key navigation;       */
-/* this rule covers setup-phase buttons, ship roster items, and toggles.      */
+/* WCAG 2.4.7 — keyboard focus indicator. :focus-visible fires only during    */
+/* keyboard navigation, not on mouse clicks, so no rings appear on mouse use. */
+/* The enemy board uses .cell--focused for arrow-key navigation; this rule    */
+/* covers setup-phase buttons, ship roster items, toggles, and all else.      */
 
 :focus-visible {
-  outline: 1px solid var(--amber);
-  outline-offset: 2px;
+  outline: 2px solid var(--focus-ring, #4fc3f7);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Belt-and-suspenders: suppress ring on mouse/touch for older Chromium builds */
+:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* ─── Atmosphere ───────────────────────────────────────────────────────────── */

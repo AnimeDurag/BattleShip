@@ -10,7 +10,7 @@
 
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import Cell from '../components/Cell';
+import Cell, { cellAriaLabel } from '../components/Cell';
 
 // ─── Class composition ────────────────────────────────────────────────────────
 
@@ -127,6 +127,65 @@ describe('Cell — ARIA and role', () => {
   it('has no role when neither attackable nor setupClickable', () => {
     const { container } = render(<Cell state="empty" isOwn={false} />);
     expect(container.firstElementChild?.getAttribute('role')).toBeNull();
+  });
+});
+
+// ─── Coordinate aria-label ────────────────────────────────────────────────────
+
+describe('Cell — coordinate aria-label (cellAriaLabel helper)', () => {
+  it('unattacked enemy cell includes coordinate and "fire here"', () => {
+    const label = cellAriaLabel('A', 1, 'empty', false);
+    expect(label).toBe('A1 — fire here');
+  });
+
+  it('hit enemy cell includes coordinate and "hit"', () => {
+    const label = cellAriaLabel('B', 3, 'hit', false);
+    expect(label).toBe('B3 — hit');
+  });
+
+  it('missed enemy cell includes coordinate and "missed"', () => {
+    const label = cellAriaLabel('C', 5, 'miss', false);
+    expect(label).toBe('C5 — missed');
+  });
+
+  it('sunk enemy cell includes coordinate and "sunk"', () => {
+    const label = cellAriaLabel('D', 7, 'sunk', false);
+    expect(label).toBe('D7 — sunk');
+  });
+
+  it('own hit cell describes "your ship was hit here"', () => {
+    const label = cellAriaLabel('E', 2, 'hit', true);
+    expect(label).toBe('E2 — your ship was hit here');
+  });
+
+  it('own miss cell describes "enemy missed here"', () => {
+    const label = cellAriaLabel('F', 4, 'miss', true);
+    expect(label).toBe('F4 — enemy missed here');
+  });
+
+  it('own sunk cell describes "your ship was sunk"', () => {
+    const label = cellAriaLabel('G', 6, 'sunk', true);
+    expect(label).toBe('G6 — your ship was sunk');
+  });
+
+  it('own empty cell returns just the coordinate', () => {
+    const label = cellAriaLabel('H', 8, 'empty', true);
+    expect(label).toBe('H8');
+  });
+
+  it('uses col and row props when provided for aria-label', () => {
+    render(<Cell state="empty" isOwn={false} attackable col="A" row={1} />);
+    expect(screen.getByRole('button', { name: 'A1 — fire here' })).toBeDefined();
+  });
+
+  it('aria-disabled is set on already-attacked cells when ariaDisabled prop is true', () => {
+    const { container } = render(<Cell state="hit" isOwn={false} col="B" row={2} ariaDisabled />);
+    expect(container.firstElementChild?.getAttribute('aria-disabled')).toBe('true');
+  });
+
+  it('aria-disabled is absent when ariaDisabled is not set', () => {
+    const { container } = render(<Cell state="empty" isOwn={false} attackable col="C" row={3} />);
+    expect(container.firstElementChild?.getAttribute('aria-disabled')).toBeNull();
   });
 });
 
